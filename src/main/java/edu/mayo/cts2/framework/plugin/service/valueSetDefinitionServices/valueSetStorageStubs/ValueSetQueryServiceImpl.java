@@ -12,7 +12,6 @@ import edu.mayo.cts2.framework.model.directory.DirectoryResult;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntryListEntry;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntrySummary;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.service.profile.valueset.ValueSetQuery;
 import edu.mayo.cts2.framework.service.profile.valueset.ValueSetQueryService;
@@ -31,7 +30,7 @@ public class ValueSetQueryServiceImpl extends ValueSetDefinitionSharedServiceBas
 			ValueSetCatalogEntrySummary vsces = new ValueSetCatalogEntrySummary();
 			vsces.setAbout(vs.getAbout());
 			vsces.setFormalName(vs.getFormalName());
-			vsces.setHref(Utilities.getUrlConstructor().createValueSetUrl(vs.getValueSetName()));
+			vsces.setHref(utilities_.getUrlConstructor().createValueSetUrl(vs.getValueSetName()));
 			vsces.setMatchStrength(1.0);
 			vsces.setResourceName(vs.getValueSetName());
 			vsces.setResourceSynopsis(vs.getResourceSynopsis());
@@ -64,7 +63,7 @@ public class ValueSetQueryServiceImpl extends ValueSetDefinitionSharedServiceBas
 		{
 			ValueSetCatalogEntryListEntry vscele = new ValueSetCatalogEntryListEntry();
 			vscele.setEntry(vs);
-			vscele.setHref(Utilities.getUrlConstructor().createValueSetUrl(vs.getValueSetName()));
+			vscele.setHref(utilities_.getUrlConstructor().createValueSetUrl(vs.getValueSetName()));
 			vscele.setMatchStrength(1.0);
 			vscele.setResourceName(vs.getValueSetName());
 			utilities_.updateValueSetForReturn(vs, vscele.getHref(), query.getReadContext());

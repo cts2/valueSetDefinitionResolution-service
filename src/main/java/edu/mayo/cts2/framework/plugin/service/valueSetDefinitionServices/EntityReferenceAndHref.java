@@ -14,11 +14,10 @@ public class EntityReferenceAndHref
 	private EntityReference entityReference_;
 	private String href_;
 
-	public EntityReferenceAndHref(EntityReference entityReference)
+	public EntityReferenceAndHref(EntityReference entityReference, String href)
 	{
 		entityReference_ = entityReference;
-		// If they aren't using the EntityReferenceMsg constructor - we assume they used a local service.
-		href_ = Utilities.getUrlConstructor().createEntityUrl(entityReference.getName());
+		href_ = href;
 	}
 
 	public EntityReferenceAndHref(EntityReferenceMsg entityReference)

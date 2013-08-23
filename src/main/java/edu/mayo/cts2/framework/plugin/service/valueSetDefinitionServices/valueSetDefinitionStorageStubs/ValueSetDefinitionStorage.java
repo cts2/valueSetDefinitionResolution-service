@@ -16,14 +16,13 @@ import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ServiceLookup;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetDefinitionReadId;
 
-public class ValueSetDefinitionStorage extends Utilities
+public class ValueSetDefinitionStorage
 {
 	private static volatile ValueSetDefinitionStorage vsds_;
-
+	
 	// ValueSetDefinitionURI to ValueSetDefinition
 	private HashMap<String, ValueSetDefinitionWithLocalName> valueSets_ = new HashMap<String, ValueSetDefinitionWithLocalName>();
 
@@ -123,7 +122,7 @@ public class ValueSetDefinitionStorage extends Utilities
 		return result;
 	}
 
-	protected LocalIdValueSetDefinition store(ValueSetDefinition vsd)
+	protected LocalIdValueSetDefinition store(ValueSetDefinition vsd, Utilities utilities)
 	{
 		String uri = vsd.getAbout();
 
@@ -166,7 +165,7 @@ public class ValueSetDefinitionStorage extends Utilities
 			}
 			else
 			{
-				ValueSetCatalogEntry vs = lookupValueSetByHref(vsd.getDefinedValueSet().getHref());
+				ValueSetCatalogEntry vs = utilities.lookupValueSetByHref(vsd.getDefinedValueSet().getHref());
 				valueSetLocalName = vs.getValueSetName();
 				valueSetUri = vs.getAbout();
 			}
@@ -175,14 +174,14 @@ public class ValueSetDefinitionStorage extends Utilities
 		{
 			logger_.debug("Looking up ValueSet by URI to get Name");
 			// Use URI to lookup Name. Ignore href.
-			ValueSetCatalogEntry vs = lookupValueSetByURI(valueSetUri, null);
+			ValueSetCatalogEntry vs = utilities.lookupValueSetByURI(valueSetUri, null);
 			valueSetLocalName = vs.getValueSetName();
 		}
 		else if (StringUtils.isBlank(valueSetUri))
 		{
 			logger_.debug("Looking up ValueSet by Name to get URI");
 			// Use name to lookup URI. Ignore href.
-			ValueSetCatalogEntry vs = lookupValueSetByLocalName(valueSetLocalName, null);
+			ValueSetCatalogEntry vs = utilities.lookupValueSetByLocalName(valueSetLocalName, null);
 			valueSetUri = vs.getAbout();
 		}
 		else
@@ -201,7 +200,7 @@ public class ValueSetDefinitionStorage extends Utilities
 			
 			try
 			{
-				ValueSetCatalogEntry vs = lookupValueSetByURI(valueSetUri, null);
+				ValueSetCatalogEntry vs = utilities.lookupValueSetByURI(valueSetUri, null);
 				if (vs == null)
 				{
 					throw new UnknownValueSet();
@@ -214,7 +213,7 @@ public class ValueSetDefinitionStorage extends Utilities
 				ValueSetCatalogEntry vsce = new ValueSetCatalogEntry();
 				vsce.setAbout(valueSetUri);
 				vsce.setFormalName(valueSetLocalName);
-				vsce = ServiceLookup.getLocalValueSetMaintenanceService().createResource(vsce);
+				vsce = utilities.getLocalValueSetMaintenanceService().createResource(vsce);
 				valueSetLocalName = vsce.getValueSetName();  //This may have been changed to make it unique, during the write.
 			}
 		}

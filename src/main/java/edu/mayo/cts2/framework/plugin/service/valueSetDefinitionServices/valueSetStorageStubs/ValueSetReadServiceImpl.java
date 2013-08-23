@@ -4,7 +4,6 @@ import org.springframework.stereotype.Component;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.service.profile.valueset.ValueSetReadService;
 
@@ -22,7 +21,10 @@ public class ValueSetReadServiceImpl extends ValueSetDefinitionSharedServiceBase
 	{
 		logger_.debug("read {}, {}", identifier, readContext);
 		ValueSetCatalogEntry vs = ValueSetStorage.getInstance().get(identifier);
-		utilities_.updateValueSetForReturn(vs, Utilities.getUrlConstructor().createValueSetUrl(vs.getValueSetName()), readContext);
+		if (vs != null)
+		{
+			utilities_.updateValueSetForReturn(vs, utilities_.getUrlConstructor().createValueSetUrl(vs.getValueSetName()), readContext);
+		}
 		return vs;
 	}
 

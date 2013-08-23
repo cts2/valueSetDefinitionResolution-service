@@ -28,8 +28,11 @@ import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescripti
  * @author darmbrust
  * 
  */
+
+
 public class EntityIterator implements Iterator<EntityReferenceResolver>
 {
+	private Utilities utilities_;
 	private final int readPageSize = 500;
 	private ArrayList<EntityReferenceResolver> buffer_ = new ArrayList<>(500);
 	private int pageId = 0;
@@ -42,8 +45,9 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 	protected final Logger logger_ = LoggerFactory.getLogger(this.getClass());
 
 	public EntityIterator(String codeSystemVersionName, String codeSystemName, String entityHref, String codeSystemServiceRootURL, ResolvedFilter resolvedFilter,
-			ResolvedReadContext readContext)
+			ResolvedReadContext readContext, Utilities utilities)
 	{
+		this.utilities_ =  utilities;
 		this.codeSystemVersionName = codeSystemVersionName;
 		this.codeSystemName = codeSystemName;
 		this.codeSystemServiceRootURL = codeSystemServiceRootURL;
@@ -63,7 +67,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 		{
 			return;
 		}
-		EntityDescriptionQueryService edqs = ServiceLookup.getLocalEntityDescriptionQueryService();
+		EntityDescriptionQueryService edqs = utilities_.getLocalEntityDescriptionQueryService();
 		List<EntityDirectoryEntry> results;
 		if (edqs != null)
 		{
@@ -121,7 +125,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 				}
 			}
 
-			params += Utilities.parameterizeReadContext(readContext_, false);
+			params += utilities_.parameterizeReadContext(readContext_, false);
 
 			EntityDirectory e;
 			if (StringUtils.isNotBlank(codeSystemServiceRootURL))

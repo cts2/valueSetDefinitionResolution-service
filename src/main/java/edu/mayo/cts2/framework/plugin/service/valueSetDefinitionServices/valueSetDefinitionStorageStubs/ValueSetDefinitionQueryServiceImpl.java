@@ -14,7 +14,6 @@ import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionDirectoryEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionListEntry;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionQuery;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionQueryService;
@@ -36,7 +35,7 @@ public class ValueSetDefinitionQueryServiceImpl extends ValueSetDefinitionShared
 			String localName = ValueSetDefinitionStorage.getInstance().getLocalName(vsd);
 			vsdde.setResourceName(localName);
 			vsdde.setAbout(vsd.getAbout());
-			vsdde.setHref(Utilities.getUrlConstructor().createValueSetDefinitionUrl(
+			vsdde.setHref(utilities_.getUrlConstructor().createValueSetDefinitionUrl(
 					(StringUtils.isBlank(vsd.getDefinedValueSet().getContent()) ? vsd.getDefinedValueSet().getUri() : vsd.getDefinedValueSet().getContent()), localName));
 			vsdde.setDocumentURI(vsd.getDocumentURI());
 			vsdde.setDefinedValueSet(vsd.getDefinedValueSet());
@@ -62,7 +61,7 @@ public class ValueSetDefinitionQueryServiceImpl extends ValueSetDefinitionShared
 		for (ValueSetDefinition vsd : ValueSetDefinitionStorage.getInstance().getAll())
 		{
 			ValueSetDefinitionListEntry vsdde = new ValueSetDefinitionListEntry();
-			vsdde.setHref(Utilities.getUrlConstructor().createValueSetDefinitionUrl(
+			vsdde.setHref(utilities_.getUrlConstructor().createValueSetDefinitionUrl(
 					(StringUtils.isBlank(vsd.getDefinedValueSet().getContent()) ? vsd.getDefinedValueSet().getUri() : vsd.getDefinedValueSet().getContent()),
 					ValueSetDefinitionStorage.getInstance().getLocalName(vsd)));
 			vsdde.addEntry(vsd);

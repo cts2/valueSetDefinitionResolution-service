@@ -10,7 +10,4 @@
 	<osgi:service ref="valueSetDefinitionUtilsServiceProvider" interface="edu.mayo.cts2.framework.service.provider.ServiceProvider"/>
 	<osgi:reference id="cts2Marshaller" interface="edu.mayo.cts2.framework.core.xml.Cts2Marshaller"/>
 	<osgi:reference id="serverContext" interface="edu.mayo.cts2.framework.core.config.ServerContext"/>
-	<!--osgi:reference id="serviceProviderFactory" interface="edu.mayo.cts2.framework.service.provider.ServiceProviderFactory"/-->
-	
-	
 </beans>

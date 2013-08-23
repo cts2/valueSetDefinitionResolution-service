@@ -7,8 +7,7 @@
 	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd 
 	http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd">
 
-	<context:component-scan base-package="edu.mayo.cts2.framework.plugin.service.valueSetDefinitionUtils"/>
+	<context:component-scan base-package="edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices"/>
 	<util:properties id="buildProperties" location="classpath:build-info.properties" />
 	<util:properties id="configProperties" location="classpath:config.properties" />
-	
 </beans>

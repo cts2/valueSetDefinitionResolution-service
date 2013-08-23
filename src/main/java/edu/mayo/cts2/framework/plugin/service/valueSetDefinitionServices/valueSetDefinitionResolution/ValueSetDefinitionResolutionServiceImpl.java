@@ -60,9 +60,7 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.types.LeafOrAll;
 import edu.mayo.cts2.framework.model.valuesetdefinition.types.TransitiveClosure;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolver;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ServiceLookup;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SetUtilities;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.AssociationQueryBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.CustomURIAndEntityName;
@@ -398,13 +396,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		ValueSetDefinitionReference valueSetDefinitionReference = new ValueSetDefinitionReference();
 
 		ValueSetReference vsr = new ValueSetReference(valueSetName);
-		vsr.setHref(Utilities.getUrlConstructor().createValueSetUrl(valueSetName));
+		vsr.setHref(utilities_.getUrlConstructor().createValueSetUrl(valueSetName));
 		vsr.setUri(valueSetURI);
 		valueSetDefinitionReference.setValueSet(vsr);
 
 		NameAndMeaningReference valueSetDefinition = new NameAndMeaningReference(valueSetDefinitionName);
 		valueSetDefinition.setUri(valueSetDefinitionURI);
-		valueSetDefinition.setHref(Utilities.getUrlConstructor().createValueSetDefinitionUrl(valueSetName, valueSetDefinitionName));
+		valueSetDefinition.setHref(utilities_.getUrlConstructor().createValueSetDefinitionUrl(valueSetName, valueSetDefinitionName));
 		valueSetDefinitionReference.setValueSetDefinition(valueSetDefinition);
 
 		resolvedValueSetHeader.setResolutionOf(valueSetDefinitionReference);
@@ -429,7 +427,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				{
 					try
 					{
-						item.resolveEntity(readContext);
+						item.resolveEntity(readContext, utilities_);
 					}
 					catch (Exception e)
 					{
@@ -502,7 +500,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, String altServiceHrefForCodeSystem, HashSet<CustomURIAndEntityName> resultHolder,
 			ResolvedReadContext readContext)
 	{
-		AssociationQueryService aqs = ServiceLookup.getLocalAssociationQueryService();
+		AssociationQueryService aqs = utilities_.getLocalAssociationQueryService();
 		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<>();
 
 		// CodeSystemVersionReference entityCodeSystemVersion = getCodeSystemVersionForEntity(entity, readContext);

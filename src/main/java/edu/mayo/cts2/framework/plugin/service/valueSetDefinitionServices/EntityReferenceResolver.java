@@ -1,6 +1,5 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices;
 
-import javax.annotation.Resource;
 import org.apache.commons.lang.StringUtils;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
 import edu.mayo.cts2.framework.model.core.EntityReference;
@@ -15,13 +14,11 @@ import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
  * @author darmbrust
  * 
  */
+
 public class EntityReferenceResolver
 {
 	private URIAndEntityName entity_;
 	EntityReference er_;
-	
-	@Resource 
-	private Utilities utilities_;
 
 	public EntityReferenceResolver(URIAndEntityName entity)
 	{
@@ -142,11 +139,11 @@ public class EntityReferenceResolver
 	/**
 	 * Only resolves if it has not yet been resolved
 	 */
-	public void resolveEntity(ResolvedReadContext readContext)
+	public void resolveEntity(ResolvedReadContext readContext, Utilities utilities)
 	{
 		if (!isResolved())
 		{
-			EntityReferenceAndHref temp = utilities_.resolveEntityReference(entity_, readContext);
+			EntityReferenceAndHref temp = utilities.resolveEntityReference(entity_, readContext);
 			er_ = temp.getEntityReference();
 			entity_.setHref(temp.getHref());  // Reset the href to what we used to resolve it.
 		}

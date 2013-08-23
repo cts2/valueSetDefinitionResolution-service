@@ -25,6 +25,7 @@ import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
 import edu.mayo.cts2.framework.model.command.ReturnContentFilter.PropertyType;
 import edu.mayo.cts2.framework.model.core.CodeSystemReference;
 import edu.mayo.cts2.framework.model.core.CodeSystemVersionReference;
+import edu.mayo.cts2.framework.model.core.EntityReference;
 import edu.mayo.cts2.framework.model.core.NameAndMeaningReference;
 import edu.mayo.cts2.framework.model.core.ScopedEntityName;
 import edu.mayo.cts2.framework.model.core.URIAndEntityName;
@@ -46,24 +47,31 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionDirect
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionMsg;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.CodeSystemVersionQueryBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.ValueSetDefinitionQueryBuilder;
+import edu.mayo.cts2.framework.service.profile.association.AssociationQueryService;
 import edu.mayo.cts2.framework.service.profile.codesystemversion.CodeSystemVersionQuery;
 import edu.mayo.cts2.framework.service.profile.codesystemversion.CodeSystemVersionQueryService;
 import edu.mayo.cts2.framework.service.profile.codesystemversion.CodeSystemVersionReadService;
+import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescriptionQueryService;
 import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescriptionReadService;
+import edu.mayo.cts2.framework.service.profile.valueset.ValueSetMaintenanceService;
 import edu.mayo.cts2.framework.service.profile.valueset.ValueSetReadService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionQuery;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionQueryService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionReadService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetDefinitionReadId;
+import edu.mayo.cts2.framework.service.provider.ServiceProvider;
 
 @Component("valueSetDefinitionResolutionUtilities")
 public class Utilities
 {
 	@Resource 
-	static protected ServerContext serverContext_;
+	protected ServerContext serverContext_;
 
 	@Resource 
 	protected Cts2Marshaller cts2Marshaller_;
+	
+	@Resource
+	private ServiceProvider valueSetDefinitionUtilsServiceProvider;
 
 	@Value("#{configProperties.valueSetServiceRootURL}") 
 	protected String valueSetServiceRootURL_;
@@ -74,7 +82,7 @@ public class Utilities
 	@Value("#{configProperties.codeSystemAndEntitiesServicesRootURL}") 
 	protected String codeSystemAndEntitiesServicesRootURL_;
 
-	static private UrlConstructor urlConstructor_;
+	private UrlConstructor urlConstructor_;
 
 	private Cts2RestClient cts2RestClient_;
 
@@ -98,7 +106,7 @@ public class Utilities
 
 		// we will assume that the ValueSetDefininitionResolutionService is on this system - otherwise, they probably won't be using these stub
 		// implementations of the ValueSet code - no need to look for an external service.
-		ValueSetDefinitionQueryService vsdqr = ServiceLookup.getLocalValueSetDefinitionQueryService();
+		ValueSetDefinitionQueryService vsdqr = getLocalValueSetDefinitionQueryService();
 
 		ValueSetDefinitionQuery vsdQuery = ValueSetDefinitionQueryBuilder.build(readContext);
 		NameOrURI valueSet = new NameOrURI();
@@ -149,7 +157,7 @@ public class Utilities
 		return null;
 	}
 
-	public static UrlConstructor getUrlConstructor()
+	public UrlConstructor getUrlConstructor()
 	{
 		if (urlConstructor_ == null)
 		{
@@ -167,7 +175,7 @@ public class Utilities
 		return cts2RestClient_;
 	}
 
-	protected ValueSetCatalogEntry lookupValueSetByURI(String uri, ResolvedReadContext readContext)
+	public ValueSetCatalogEntry lookupValueSetByURI(String uri, ResolvedReadContext readContext)
 	{
 		logger_.debug("Looking up ValueSet by URI to get localname");
 
@@ -182,10 +190,17 @@ public class Utilities
 						+ parameterizeReadContext(readContext, false);
 				vs = getRestClient().getCts2Resource(address, ValueSetCatalogEntry.class);
 			}
-			else
+		}
+		catch (Exception e)
+		{
+			logger_.debug("Remote Service Lookup failed - " + e);
+		}
+		try
+		{
+			if (vs == null)
 			{
 				logger_.debug("Looking up valueset using internal service");
-				ValueSetReadService vssp = ServiceLookup.getLocalValueSetReadService();
+				ValueSetReadService vssp = getLocalValueSetReadService();
 				NameOrURI nameOrURI = new NameOrURI();
 				nameOrURI.setUri(uri);
 				vs = vssp.read(nameOrURI, readContext);
@@ -193,8 +208,7 @@ public class Utilities
 		}
 		catch (Exception e)
 		{
-			logger_.error("Lookup failed", e);
-			throw new UnknownValueSet();
+			logger_.debug("Local Service Lookup failed - " + e);
 		}
 		if (vs == null)
 		{
@@ -203,7 +217,7 @@ public class Utilities
 		return vs;
 	}
 
-	protected ValueSetCatalogEntry lookupValueSetByHref(String href)
+	public ValueSetCatalogEntry lookupValueSetByHref(String href)
 	{
 		logger_.debug("Looking up ValueSet by href to get URI and localName");
 		try
@@ -222,7 +236,7 @@ public class Utilities
 		}
 	}
 
-	protected ValueSetCatalogEntry lookupValueSetByLocalName(String localName, ResolvedReadContext readContext)
+	public ValueSetCatalogEntry lookupValueSetByLocalName(String localName, ResolvedReadContext readContext)
 	{
 		logger_.debug("Looking up ValueSet by Name to get URI");
 		ValueSetCatalogEntry vs = null;
@@ -239,7 +253,7 @@ public class Utilities
 			else
 			{
 				logger_.debug("Looking up valueset using internal service");
-				ValueSetReadService vssp = ServiceLookup.getLocalValueSetReadService();
+				ValueSetReadService vssp = getLocalValueSetReadService();
 
 				NameOrURI nameOrURI = new NameOrURI();
 				nameOrURI.setName(localName);
@@ -297,7 +311,7 @@ public class Utilities
 			if (StringUtils.isBlank(valueSetDefinitionServiceRootURL_))
 			{
 				logger_.debug("Looking up via local service");
-				ValueSetDefinitionReadService vsdrs = ServiceLookup.getLocalValueSetDefinitionReadService();
+				ValueSetDefinitionReadService vsdrs = getLocalValueSetDefinitionReadService();
 				definition = vsdrs.read(definitionId, readContext);
 			}
 			else
@@ -361,7 +375,7 @@ public class Utilities
 		return definition;
 	}
 
-	public static String parameterizeReadContext(ResolvedReadContext readContext, boolean isFirstParam)
+	public String parameterizeReadContext(ResolvedReadContext readContext, boolean isFirstParam)
 	{
 		if (readContext == null)
 		{
@@ -411,7 +425,7 @@ public class Utilities
 		readContext.setActive(ActiveOrAll.ACTIVE_ONLY);
 		try
 		{
-			EntityDescriptionReadService edrs = ServiceLookup.getLocalEntityDescriptionReadService();
+			EntityDescriptionReadService edrs = getLocalEntityDescriptionReadService();
 			if (edrs != null)
 			{
 				logger_.debug("resolving up EntityReference using local EntityDescriptionService");
@@ -433,7 +447,8 @@ public class Utilities
 				{
 					throw new InvalidParameterException("URI is required within a  URIAndEntityName!");
 				}
-				return new EntityReferenceAndHref(edrs.availableDescriptions(e, readContext));
+				EntityReference entityReference = edrs.availableDescriptions(e, readContext);
+				return new EntityReferenceAndHref(entityReference, getUrlConstructor().createEntityUrl(entityReference.getName()));
 			}
 			else if (StringUtils.isNotBlank(codeSystemAndEntitiesServicesRootURL_))
 			{
@@ -498,7 +513,7 @@ public class Utilities
 	public CodeSystemVersionCatalogEntry lookupCodeSystemVersion(CodeSystemReference codeSystem, CodeSystemVersionReference codeSystemVersion,
 			ResolvedReadContext readContext)
 	{
-		CodeSystemVersionReadService csvrs = ServiceLookup.getLocalCodeSystemVersionReadService();
+		CodeSystemVersionReadService csvrs = getLocalCodeSystemVersionReadService();
 		CodeSystemVersionCatalogEntry result = null;
 
 		if (codeSystem == null)
@@ -610,7 +625,7 @@ public class Utilities
 	public CodeSystemVersionCatalogEntrySummary getDefaultCodeSystemVersion(CodeSystemReference codeSystem, ResolvedReadContext readContext)
 	{
 		// Lookup up the codeSystem parameter (which is required), then check equality on the version (if the version was passed in)
-		CodeSystemVersionQueryService csvqs = ServiceLookup.getLocalCodeSystemVersionQueryService();
+		CodeSystemVersionQueryService csvqs = getLocalCodeSystemVersionQueryService();
 
 		CodeSystemVersionCatalogEntrySummary finalResult = null;
 		CodeSystemVersionCatalogEntrySummary potentialResult = null;
@@ -769,7 +784,7 @@ public class Utilities
 	public Iterator<EntityReferenceResolver> getEntities(String codeSystemVersionName, String codeSystemName, String entityHref, ResolvedFilter resolvedFilter,
 			ResolvedReadContext readContext)
 	{
-		return new EntityIterator(codeSystemVersionName, codeSystemName, entityHref, codeSystemAndEntitiesServicesRootURL_, resolvedFilter, readContext);
+		return new EntityIterator(codeSystemVersionName, codeSystemName, entityHref, codeSystemAndEntitiesServicesRootURL_, resolvedFilter, readContext, this);
 	}
 
 	//TODO toss this?
@@ -833,5 +848,53 @@ public class Utilities
 		{
 			return codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + temp;
 		}
+	}
+	
+	//TODO FRAMEWORK - We need a way to have multiple service providers - https://github.com/cts2/cts2-framework/issues/29
+	//within a single instance - as the service provider that I am providing above isn't going to return hits for the unimplemented methods below.
+	
+	public ValueSetDefinitionQueryService getLocalValueSetDefinitionQueryService()
+	{
+		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetDefinitionQueryService.class);
+	}
+	
+	public ValueSetReadService getLocalValueSetReadService()
+	{
+		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetReadService.class);
+	}
+	
+	public ValueSetMaintenanceService getLocalValueSetMaintenanceService()
+	{
+		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetMaintenanceService.class);
+	}
+	
+	public ValueSetDefinitionReadService getLocalValueSetDefinitionReadService()
+	{
+		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetDefinitionReadService.class);
+	}
+	
+	public EntityDescriptionReadService getLocalEntityDescriptionReadService()
+	{
+		return null;
+	}
+
+	public EntityDescriptionQueryService getLocalEntityDescriptionQueryService()
+	{
+		return null;
+	}
+
+	public CodeSystemVersionReadService getLocalCodeSystemVersionReadService()
+	{
+		return null;
+	}
+
+	public CodeSystemVersionQueryService getLocalCodeSystemVersionQueryService()
+	{
+		return null;
+	}
+
+	public AssociationQueryService getLocalAssociationQueryService()
+	{
+		return null;
 	}
 }
