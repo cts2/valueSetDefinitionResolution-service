@@ -92,6 +92,25 @@ public class ValueSetStorage
 
 	protected ValueSetCatalogEntry store(ValueSetCatalogEntry vsce)
 	{
+		String id = vsce.getAbout();
+		if (StringUtils.isBlank(id))
+		{
+			throw new UnspecifiedCts2Exception("The ValueSet 'About' field must be populated");
+		}
+		if (valueSets_.containsKey(id))
+		{
+			throw new DuplicateValueSetURI();
+		}
+
+		try
+		{
+			new URI(id);
+		}
+		catch (URISyntaxException e)
+		{
+			throw new UnspecifiedCts2Exception("The ValueSet 'About' field must be a valid URI - " + e);
+		}
+		
 		String name = vsce.getValueSetName();
 
 		// Use the name the provided, if we can. But we have to make it unique....
@@ -113,25 +132,6 @@ public class ValueSetStorage
 			name += "-" + uniqueId_.getAndIncrement();
 		}
 		vsce.setValueSetName(name);
-
-		String id = vsce.getAbout();
-		if (StringUtils.isBlank(id))
-		{
-			throw new UnspecifiedCts2Exception("The ValueSet 'About' field must be populated");
-		}
-		if (valueSets_.containsKey(id))
-		{
-			throw new DuplicateValueSetURI();
-		}
-
-		try
-		{
-			new URI(id);
-		}
-		catch (URISyntaxException e)
-		{
-			throw new UnspecifiedCts2Exception("The ValueSet 'About' field must be a valid URI - " + e);
-		}
 
 		valueSets_.put(id, vsce);
 		nameToId_.put(name, id);

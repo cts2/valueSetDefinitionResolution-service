@@ -60,6 +60,7 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.types.LeafOrAll;
 import edu.mayo.cts2.framework.model.valuesetdefinition.types.TransitiveClosure;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolver;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ServiceLookup;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SetUtilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
@@ -79,7 +80,7 @@ import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetD
 public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionSharedServiceBase implements ValueSetDefinitionResolutionService
 {
 	// TODO TEST cycle detection
-	// TODO TEST predicate lookup on 'fillInDetails' and see if this actually works for predicates, or if I need to customize it.
+	// TODO TEST predicate lookup on 'resolveEntity' and see if this actually works for predicates, or if I need to customize it.
 	// TODO TEST threading
 	// TODO TEST property query reference
 	// TODO QUESTION Kevin about all of these boilerplate things above that I'm skipping
@@ -477,7 +478,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		catch (Exception e)
 		{
-			// TODO QUESTION is this ok?
+			// TODO QUESTION does predicate need to be resolvable?
 			logger_.warn("Predicate lookup failed, will continue using the predicate as entered", e);
 		}
 
@@ -501,7 +502,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, String altServiceHrefForCodeSystem, HashSet<CustomURIAndEntityName> resultHolder,
 			ResolvedReadContext readContext)
 	{
-		AssociationQueryService aqs = Utilities.getLocalAssociationQueryService();
+		AssociationQueryService aqs = ServiceLookup.getLocalAssociationQueryService();
 		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<>();
 
 		// CodeSystemVersionReference entityCodeSystemVersion = getCodeSystemVersionForEntity(entity, readContext);
@@ -588,7 +589,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				throw new RuntimeException("No service is available to resolve the hierarchy");
 			}
 
-			// TODO BUG switch over to predicate filtering directly, when fixed - not currently parsing predicate from href properly
+			// TODO BUG switch over to predicate filtering directly, when fixed - https://github.com/cts2/cts2-framework/issues/28
 			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion));
 		}
 

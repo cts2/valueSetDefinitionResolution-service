@@ -6,26 +6,23 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Resource;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.exception.DuplicateValueSetURI;
+import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ServiceLookup;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetDefinitionReadId;
-import edu.mayo.cts2.framework.service.provider.ServiceProvider;
 
 public class ValueSetDefinitionStorage extends Utilities
 {
 	private static volatile ValueSetDefinitionStorage vsds_;
-
-	@Resource 
-	protected ServiceProvider valueSetServiceProvider;
 
 	// ValueSetDefinitionURI to ValueSetDefinition
 	private HashMap<String, ValueSetDefinitionWithLocalName> valueSets_ = new HashMap<String, ValueSetDefinitionWithLocalName>();
@@ -137,7 +134,7 @@ public class ValueSetDefinitionStorage extends Utilities
 
 		if (valueSets_.containsKey(uri))
 		{
-			throw new DuplicateValueSetURI();  // TODO should be 'definition'
+			throw new DuplicateValueSetURI();  // TODO BUG should be 'definition' https://github.com/cts2/cts2-framework/issues/27
 		}
 
 		if (vsd.getDefinedValueSet() == null)
@@ -191,7 +188,7 @@ public class ValueSetDefinitionStorage extends Utilities
 		else
 		{
 			// Both populated, use as is. Ignore href
-			logger_.debug("Using ValueSet Name and  URI as provided (not validating that it exists)");
+			logger_.debug("Using ValueSet Name and  URI as provided");
 
 			try
 			{
@@ -201,8 +198,25 @@ public class ValueSetDefinitionStorage extends Utilities
 			{
 				throw new UnspecifiedCts2Exception("The DefinedValueSet 'URI' field must be a valid URI - " + e);
 			}
-
-			// TODO - should this do a lookup (and potentially, a POST if it doesn't exist)?
+			
+			try
+			{
+				ValueSetCatalogEntry vs = lookupValueSetByURI(valueSetUri, null);
+				if (vs == null)
+				{
+					throw new UnknownValueSet();
+				}
+				valueSetLocalName = vs.getValueSetName();
+			}
+			catch (UnknownValueSet e)
+			{
+				//Not present... lets store it in our local catalog.
+				ValueSetCatalogEntry vsce = new ValueSetCatalogEntry();
+				vsce.setAbout(valueSetUri);
+				vsce.setFormalName(valueSetLocalName);
+				vsce = ServiceLookup.getLocalValueSetMaintenanceService().createResource(vsce);
+				valueSetLocalName = vsce.getValueSetName();  //This may have been changed to make it unique, during the write.
+			}
 		}
 
 		// Should have the valueSetName and valueSetURI now.

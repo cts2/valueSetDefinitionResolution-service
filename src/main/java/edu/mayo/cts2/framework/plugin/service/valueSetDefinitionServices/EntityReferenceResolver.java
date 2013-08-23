@@ -19,8 +19,9 @@ public class EntityReferenceResolver
 {
 	private URIAndEntityName entity_;
 	EntityReference er_;
-
-	@Resource Utilities utilities_;
+	
+	@Resource 
+	private Utilities utilities_;
 
 	public EntityReferenceResolver(URIAndEntityName entity)
 	{

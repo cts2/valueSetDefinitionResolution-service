@@ -63,7 +63,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 		{
 			return;
 		}
-		EntityDescriptionQueryService edqs = Utilities.getLocalEntityDescriptionQueryService();
+		EntityDescriptionQueryService edqs = ServiceLookup.getLocalEntityDescriptionQueryService();
 		List<EntityDirectoryEntry> results;
 		if (edqs != null)
 		{
@@ -84,8 +84,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 				query.getFilterComponent().add(resolvedFilter_);
 			}
 
-			// This is broken in lexevs at the moment
-			// TODO test this, file bug if necessary
+			// TODO BUG list operation is broken at the moment - https://github.com/cts2/cts2-framework/issues/23
 			// DirectoryResult<EntityListEntry> temp = edqs.getResourceList(null, null, page);
 			// results = temp.getEntries();
 
@@ -128,8 +127,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 			if (StringUtils.isNotBlank(codeSystemServiceRootURL))
 			{
 				logger_.debug("Iterating entities with remote service");
-				// https://github.com/cts2/cts2-framework/issues/23
-				// TODO bug list=true is broken at the moment?
+				// TODO BUG list=true is broken at the moment - https://github.com/cts2/cts2-framework/issues/23
 				// EntityList e = Cts2RestClient.instance().getCts2Resource(
 				// codeSystemServiceRootURL + (codeSystemServiceRootURL.endsWith("/") ? "" : "/") + "codesystem/" + codeSystemName + "/" + "/version/"
 				// + codeSystemVersionName + "/entities?page=" + pageId++ + "&maxtoreturn=500&list=true", EntityList.class);
