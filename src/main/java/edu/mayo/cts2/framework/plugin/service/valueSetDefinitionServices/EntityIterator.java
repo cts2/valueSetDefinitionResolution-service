@@ -8,6 +8,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import edu.mayo.cts2.framework.core.client.Cts2RestClient;
+import edu.mayo.cts2.framework.core.timeout.Timeout;
 import edu.mayo.cts2.framework.model.command.Page;
 import edu.mayo.cts2.framework.model.command.ResolvedFilter;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
@@ -66,6 +67,10 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 		if (finished)
 		{
 			return;
+		}
+		if (Timeout.isTimeLimitExceeded())
+		{
+			throw new RuntimeException("Notified of timeout");
 		}
 		EntityDescriptionQueryService edqs = utilities_.getLocalEntityDescriptionQueryService();
 		List<EntityDirectoryEntry> results;

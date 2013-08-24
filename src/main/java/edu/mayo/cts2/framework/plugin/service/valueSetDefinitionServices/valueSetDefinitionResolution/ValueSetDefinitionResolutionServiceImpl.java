@@ -8,7 +8,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -21,6 +20,7 @@ import org.springframework.stereotype.Component;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import edu.mayo.cts2.framework.core.client.Cts2RestClient;
+import edu.mayo.cts2.framework.core.timeout.Timeout;
 import edu.mayo.cts2.framework.model.association.AssociationDirectory;
 import edu.mayo.cts2.framework.model.association.AssociationDirectoryEntry;
 import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogEntry;
@@ -229,6 +229,10 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		for (ValueSetDefinitionEntry valueSetDefinitionEntry : vsd.getEntryAsReference())
 		{
+			if (Timeout.isTimeLimitExceeded())
+			{
+				throw new RuntimeException("Notified of timeout");
+			}
 			Object entry = valueSetDefinitionEntry.getChoiceValue();
 			ArrayList<EntityReferenceResolver> itemList = new ArrayList<>();
 
@@ -353,6 +357,10 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 				catch (InterruptedException e)
 				{
+					if (Timeout.isTimeLimitExceeded())
+					{
+						throw new RuntimeException("Notified of timeout");
+					}
 					throw new RuntimeException("Unexpected Interrupt", e);
 				}
 			}
@@ -367,8 +375,16 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		{
 			new SetUtilities<EntityReferenceResolver>().handleSet(vsd.getEntry(i).getOperator(), result, tempResults.get(i));
 		}
+		
+		if (Timeout.isTimeLimitExceeded())
+		{
+			throw new RuntimeException("Notified of timeout");
+		}
 
-		resolveMissingEntityDesignations(result, readContext);
+		if (!resolveMissingEntityDesignations(result, readContext))
+		{
+			throw new IllegalArgumentException("Failed to resolve all Entities");
+		}
 		
 		for (EntityReferenceResolver ere : result)
 		{
@@ -413,41 +429,62 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return resolvedValueSetHeader;
 	}
 
-	private void resolveMissingEntityDesignations(List<EntityReferenceResolver> items, final ResolvedReadContext readContext)
+	/**
+	 * Returns true if all were resolved without error, false otherwise.
+	 * @return
+	 */
+	private boolean resolveMissingEntityDesignations(List<EntityReferenceResolver> items, final ResolvedReadContext readContext)
 	{
-		final CountDownLatch cdl = new CountDownLatch(items.size());
-
+		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
+		
 		// Throw these entity resolution jobs at the thread pool, as they take a relatively long time against remote services.
 		for (final EntityReferenceResolver item : items)
 		{
-			threadPool_.execute(new Runnable()
+			tasks.add(new Callable<Boolean>()
 			{
 				@Override
-				public void run()
+				public Boolean call() throws Exception
 				{
 					try
 					{
 						item.resolveEntity(readContext, utilities_);
+						return true;
 					}
 					catch (Exception e)
 					{
 						logger_.warn("Unexpected error resolving designation for Entity " + item, e);
-					}
-					finally
-					{
-						cdl.countDown();
+						return false;
 					}
 				}
 			});
 		}
-
 		try
 		{
 			// Wait for all of our resolve tasks to finish.
-			cdl.await();
+			List<Future<Boolean>> results = threadPool_.invokeAll(tasks);
+			try
+			{
+				for (Future<Boolean> result : results)
+				{
+					if (!result.get())
+					{
+						return false;
+					}
+				}
+			}
+			catch (ExecutionException e)
+			{
+				logger_.error("Unexpected error", e);
+				return false;
+			}
+			return true;
 		}
 		catch (InterruptedException e)
 		{
+			if (Timeout.isTimeLimitExceeded())
+			{
+				throw new RuntimeException("Notified of timeout");
+			}
 			logger_.warn("Unexpected interrupt", e);
 			throw new RuntimeException("Unexpected interrupt", e);
 		}
