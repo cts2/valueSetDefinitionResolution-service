@@ -2,6 +2,7 @@ package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices;
 
 import org.apache.commons.lang.StringUtils;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
+import edu.mayo.cts2.framework.model.core.CodeSystemVersionReference;
 import edu.mayo.cts2.framework.model.core.EntityReference;
 import edu.mayo.cts2.framework.model.core.ScopedEntityName;
 import edu.mayo.cts2.framework.model.core.URIAndEntityName;
@@ -19,10 +20,12 @@ public class EntityReferenceResolver
 {
 	private URIAndEntityName entity_;
 	EntityReference er_;
+	CodeSystemVersionReference codeSystemVersion_; 
 
-	public EntityReferenceResolver(URIAndEntityName entity)
+	public EntityReferenceResolver(URIAndEntityName entity, CodeSystemVersionReference codeSystemVersion)
 	{
 		this.entity_ = entity;
+		this.codeSystemVersion_ = codeSystemVersion;
 	}
 
 	public EntityReferenceResolver(EntityReferenceAndHref er)
@@ -143,7 +146,11 @@ public class EntityReferenceResolver
 	{
 		if (!isResolved())
 		{
-			EntityReferenceAndHref temp = utilities.resolveEntityReference(entity_, readContext);
+			if (codeSystemVersion_ == null)
+			{
+				throw new RuntimeException("Code system version wasn't passed in upon creation!");
+			}
+			EntityReferenceAndHref temp = utilities.resolveEntityReference(entity_, codeSystemVersion_, readContext);
 			er_ = temp.getEntityReference();
 			entity_.setHref(temp.getHref());  // Reset the href to what we used to resolve it.
 		}

@@ -1,8 +1,10 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution;
 
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -24,9 +26,11 @@ import edu.mayo.cts2.framework.core.timeout.Timeout;
 import edu.mayo.cts2.framework.model.association.AssociationDirectory;
 import edu.mayo.cts2.framework.model.association.AssociationDirectoryEntry;
 import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogEntry;
+import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogEntrySummary;
 import edu.mayo.cts2.framework.model.command.Page;
 import edu.mayo.cts2.framework.model.command.ResolvedFilter;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
+import edu.mayo.cts2.framework.model.core.CodeSystemReference;
 import edu.mayo.cts2.framework.model.core.CodeSystemVersionReference;
 import edu.mayo.cts2.framework.model.core.ComponentReference;
 import edu.mayo.cts2.framework.model.core.DescriptionInCodeSystem;
@@ -46,6 +50,7 @@ import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
+import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.valuesetdefinition.AssociatedEntitiesReference;
 import edu.mayo.cts2.framework.model.valuesetdefinition.CompleteCodeSystemReference;
 import edu.mayo.cts2.framework.model.valuesetdefinition.CompleteValueSetReference;
@@ -58,6 +63,7 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.types.LeafOrAll;
 import edu.mayo.cts2.framework.model.valuesetdefinition.types.TransitiveClosure;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.CodeSystemVersionCatalogEntryAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolver;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SetUtilities;
@@ -78,7 +84,6 @@ import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetD
 public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionSharedServiceBase implements ValueSetDefinitionResolutionService
 {
 	// TODO TEST cycle detection
-	// TODO TEST predicate lookup on 'resolveEntity' and see if this actually works for predicates, or if I need to customize it.
 	// TODO TEST threading
 	// TODO TEST property query reference
 	// TODO QUESTION Kevin about all of these boilerplate things above that I'm skipping
@@ -146,7 +151,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	{
 		logger_.debug("resolveDefinitionAsCompleteSet {}, {}, {}, {}", definitionId, codeSystemVersions, tag, readContext);
 		ResolvedValueSet resolvedValueSet = new ResolvedValueSet();
-		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, null, null, readContext, null, true);
+		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, null, null, readContext, null);
 		resolvedValueSet.setEntry(rr.getItems());
 		resolvedValueSet.setResolutionInfo(rr.getHeader());
 		return resolvedValueSet;
@@ -169,7 +174,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	{
 		logger_.debug("resolveDefinition {}, {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
 
-		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page, true);
+		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
 		return new ResolvedValueSetResult<URIAndEntityName>(rr.getHeader(), rr.getItems(), rr.isAtEnd());
 	}
 
@@ -189,17 +194,17 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			NameOrURI tag, ResolvedValueSetResolutionEntityQuery query, SortCriteria sortCriteria, ResolvedReadContext readContext, Page page)
 	{
 		logger_.debug("resolveDefinitionAsEntityDirectory {}, {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
-		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page, false);
+		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
 		ResolvedValueSetResult<EntityDirectoryEntry> rvsr = new ResolvedValueSetResult<EntityDirectoryEntry>(rr.getHeader(), rr.getEntityDirectoryEntry(), rr.isAtEnd());
 		return rvsr;
 	}
 
-	private ResolveReturn resolveHelper(ValueSetDefinitionReadId definitionId, Set<NameOrURI> codeSystemVersions, NameOrURI tag,
-			ResolvedValueSetResolutionEntityQuery query, SortCriteria sortCriteria, final ResolvedReadContext readContext, Page page, boolean entitySynopsis)
+	private ResolveReturn resolveHelper(ValueSetDefinitionReadId definitionId, Set<NameOrURI> codeSystemVersions, final NameOrURI tag,
+			ResolvedValueSetResolutionEntityQuery query, SortCriteria sortCriteria, final ResolvedReadContext readContext, Page page)
 	{
-		logger_.debug("resolveHelper {}, {}, {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page, entitySynopsis);
+		logger_.debug("resolveHelper {}, {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
 
-		Long cacheKey = makeCacheKey(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, entitySynopsis);
+		Long cacheKey = makeCacheKey(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext);
 		ResultCache rc = resultCache_.getIfPresent(cacheKey);
 		if (rc != null)
 		{
@@ -213,7 +218,24 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 
 		// TODO QUESTION how to handle query
-		// TODO handle tag, codeSystemVersions properly
+		
+		//Lookup all of the codeSystemVersions
+		final HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions = new HashMap<>();
+		if (codeSystemVersions != null)
+		{
+			for (NameOrURI nou : codeSystemVersions)
+			{
+				try
+				{
+					CodeSystemVersionCatalogEntryAndHref csvce = utilities_.lookupCodeSystemVersion(nou, null, readContext);
+					resolvedCodeSystemVersions.put(csvce.getCodeSystemVersionCatalogEntry().getAbout(), csvce);
+				}
+				catch (Exception e)
+				{
+					throw new UnsupportedOperationException("The requested code system version '" + nou.getName() + ":" + nou.getUri() + "' could not be resolved");
+				}
+			}
+		}
 
 		ArrayList<EntityReferenceResolver> result = new ArrayList<>();
 		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<>();
@@ -239,13 +261,15 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			if (entry instanceof AssociatedEntitiesReference)
 			{
 				AssociatedEntitiesReference aer = (AssociatedEntitiesReference) entry;
-				List<EntityReferenceResolver> items = resolveAssociations(aer, readContext);
+				List<EntityReferenceResolver> items = resolveAssociations(aer, resolvedCodeSystemVersions, tag, readContext);
 				itemList.addAll(items);
 			}
 			else if (entry instanceof PropertyQueryReference)
 			{
 				PropertyQueryReference pqr = (PropertyQueryReference) entry;
-				CodeSystemVersionCatalogEntry csv = utilities_.lookupCodeSystemVersion(pqr.getCodeSystem(), pqr.getCodeSystemVersion(), readContext);
+				
+				CodeSystemVersionCatalogEntry csv = pickBestCodeSystemVersion(pqr.getCodeSystemVersion(), pqr.getCodeSystem(), tag, resolvedCodeSystemVersions, 
+						readContext).getCodeSystemVersionCatalogEntry();
 
 				if (pqr.getFilter() == null)
 				{
@@ -286,21 +310,39 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					nestedCodeSystemVersions.add(nestedCodeSystemVersion);
 				}
 
-				ResolvedValueSet rvs = resolveDefinitionAsCompleteSet(nestedValueSetDefinitionReadId, nestedCodeSystemVersions, tag, readContext);
-
-				for (URIAndEntityName item : rvs.getEntryAsReference())
+				Page subPage = new Page();
+				
+				ResolvedValueSetHeader rvsh = null;
+				while (true)
 				{
-					itemList.add(new EntityReferenceResolver(item));
-				}
-				includesResolvedValueSets.add(rvs.getResolutionInfo());
+					//TODO QUESTION about how nestedCodeSystemVersions are handled with the specified codesystemVersions
+					ResolveReturn rr = resolveHelper(nestedValueSetDefinitionReadId, nestedCodeSystemVersions, tag, null, null, readContext, subPage);
+					if (rvsh == null)
+					{
+						rvsh = rr.getHeader();
+					}
+					for (EntityDirectoryEntry item : rr.getEntityDirectoryEntry())
+					{
+						itemList.add(new EntityReferenceResolver(item));
+					}
+					if (rr.isAtEnd())
+					{
+						break;
+					}
+					else
+					{
+						subPage.setPage(subPage.getEnd() + 1);
+					}
+				}				
+				includesResolvedValueSets.add(rvsh);
 			}
 			else if (entry instanceof CompleteCodeSystemReference)
 			{
 				CompleteCodeSystemReference completeCodeSystemRef = (CompleteCodeSystemReference) entry;
-				CodeSystemVersionCatalogEntry cs = utilities_.lookupCodeSystemVersion(completeCodeSystemRef.getCodeSystem(),
-						completeCodeSystemRef.getCodeSystemVersion(), readContext);
-				Iterator<EntityReferenceResolver> entities = utilities_.getEntities(cs.getCodeSystemVersionName(), cs.getVersionOf().getContent(),
-						cs.getEntityDescriptions(), null, readContext);
+				CodeSystemVersionCatalogEntry csv = pickBestCodeSystemVersion(completeCodeSystemRef.getCodeSystemVersion(), completeCodeSystemRef.getCodeSystem(), 
+						tag, resolvedCodeSystemVersions, readContext).getCodeSystemVersionCatalogEntry();
+				Iterator<EntityReferenceResolver> entities = utilities_.getEntities(csv.getCodeSystemVersionName(), csv.getVersionOf().getContent(),
+						csv.getEntityDescriptions(), null, readContext);
 				while (entities.hasNext())
 				{
 					itemList.add(entities.next());
@@ -320,17 +362,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 							@Override
 							public EntityReferenceAndHref call() throws Exception
 							{
-								EntityReferenceAndHref er = utilities_.resolveEntityReference(entity, readContext);
+								EntityReferenceAndHref er = utilities_.resolveEntityReference(entity, resolvedCodeSystemVersions, tag, readContext);
 								if (er == null)
 								{
 									logger_.error("The entity '" + entity.toString() + "' from a SpecificEntityList could not be resolved");
 									throw new IllegalArgumentException("The entity '" + entity.toString() + "' from a SpecificEntityList could not be resolved");
-//									er = new EntityReference();
-//									er.setAbout(entity.getUri());
-//									ScopedEntityName name = new ScopedEntityName();
-//									name.setName(entity.getName());
-//									name.setNamespace(entity.getNamespace());
-//									er.setName(name);
 								}
 								return er;
 							}
@@ -402,6 +438,46 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		resultCache_.put(cacheKey, resultCache);
 
 		return new ResolveReturn(resultCache, page);
+	}
+	
+	private CodeSystemVersionCatalogEntryAndHref pickBestCodeSystemVersion(CodeSystemVersionReference codeSystemVersion, CodeSystemReference codeSystem, 
+			NameOrURI tag, HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions, ResolvedReadContext readContext)
+	{
+		CodeSystemVersionCatalogEntryAndHref csv = null;
+		
+		if (codeSystemVersion != null && codeSystemVersion.getVersion() != null)
+		{
+			//We use the code system specified in the ValueSet, if one is provided
+			NameOrURI nameOrURI = new NameOrURI();
+			nameOrURI.setName(codeSystemVersion.getVersion().getContent());
+			nameOrURI.setUri(codeSystemVersion.getVersion().getUri());
+			csv = utilities_.lookupCodeSystemVersion(nameOrURI, codeSystemVersion.getVersion().getHref(), readContext);
+		}
+		else
+		{
+			//If the requested code system matches one of the passed in CodeSystemVersion references, use that.
+			csv = resolvedCodeSystemVersions.get(codeSystem.getUri());
+			
+			if (csv == null)
+			{
+				//still null - no match, pick a CodeSystemVersion that matches the requested tag, or failing that - CURRENT.
+				//TODO QUESTION allow fallback to arbitrary?
+				CodeSystemVersionCatalogEntrySummary csvces = utilities_.lookupCodeSystemVersionByTag(codeSystem, tag, "CURRENT", true, readContext);
+				if (csvces != null)
+				{
+					NameOrURI nameOrURI = new NameOrURI();
+					nameOrURI.setUri(csvces.getAbout());
+					csv = utilities_.lookupCodeSystemVersion(nameOrURI, csvces.getHref(), readContext);
+				}
+			}
+		}
+		
+		
+		if (csv == null)
+		{
+			throw new InvalidParameterException("Could not resolved the specified or requested CodeSystemVersion for " + codeSystem);
+		}
+		return csv;
 	}
 
 	private ResolvedValueSetHeader buildResolvedValueSetHeader(String valueSetName, String valueSetURI, String valueSetDefinitionName, String valueSetDefinitionURI,
@@ -490,10 +566,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 	}
 
-	private List<EntityReferenceResolver> resolveAssociations(AssociatedEntitiesReference aer, ResolvedReadContext readContext)
+	private List<EntityReferenceResolver> resolveAssociations(AssociatedEntitiesReference aer, HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions, 
+			NameOrURI tag, ResolvedReadContext readContext)
 	{
-		// fix my mess with the various codeSystems here
-		CodeSystemVersionCatalogEntry associationVersionCodeSystemInfo = utilities_.lookupCodeSystemVersion(aer.getCodeSystem(), aer.getCodeSystemVersion(), readContext);
+		CodeSystemVersionCatalogEntryAndHref associationVersionCodeSystemInfo = pickBestCodeSystemVersion(aer.getCodeSystemVersion(), aer.getCodeSystem(), tag, 
+				resolvedCodeSystemVersions, readContext);
 
 		URIAndEntityName referencedEntity = aer.getReferencedEntity();
 		if (aer.getReferencedEntity() == null)
@@ -502,106 +579,110 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else if (StringUtils.isBlank(referencedEntity.getName()))
 		{
+			//This code should never actually run... but leave it in, since its here.
 			EntityReference er = utilities_.resolveEntityReference(aer.getReferencedEntity(), readContext).getEntityReference();
 			referencedEntity.setName(er.getName().getName());
 			referencedEntity.setNamespace(er.getName().getNamespace());
 		}
 
-		try
-		{
-			utilities_.resolveEntityReference(aer.getPredicate(), readContext);
-		}
-		catch (Exception e)
-		{
-			// TODO QUESTION does predicate need to be resolvable?
-			logger_.warn("Predicate lookup failed, will continue using the predicate as entered", e);
-		}
+		//Kevin said we didn't need to bother resolving the predicate
 
 		HashSet<CustomURIAndEntityName> resultHolder = new HashSet<CustomURIAndEntityName>();
 
 		processLevel(aer.getReferencedEntity(), aer.getDirection(), associationVersionCodeSystemInfo, aer.getTransitivity(), aer.getPredicate().getUri(),
-				LeafOrAll.LEAF_ONLY == aer.getLeafOnly(), ((aer.getCodeSystemVersion() != null && aer.getCodeSystemVersion().getVersion() != null) ? aer
-						.getCodeSystemVersion().getVersion().getHref() : null), resultHolder, readContext);
+				LeafOrAll.LEAF_ONLY == aer.getLeafOnly(), resultHolder, readContext);
 
 		ArrayList<EntityReferenceResolver> results = new ArrayList<>(resultHolder.size());
+		
 
 		for (CustomURIAndEntityName entity : resultHolder)
 		{
-			results.add(new EntityReferenceResolver(entity.getEntity()));
+			results.add(new EntityReferenceResolver(entity.getEntity(), associationVersionCodeSystemInfo.getAsCodeSystemVersionReference()));
 		}
 
 		return results;
 	}
 
-	private void processLevel(URIAndEntityName entity, AssociationDirection direction, CodeSystemVersionCatalogEntry associationCodeSystemVersion,
-			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, String altServiceHrefForCodeSystem, HashSet<CustomURIAndEntityName> resultHolder,
-			ResolvedReadContext readContext)
+	private void processLevel(URIAndEntityName entity, AssociationDirection direction, CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion,
+			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, HashSet<CustomURIAndEntityName> resultHolder, ResolvedReadContext readContext)
 	{
 		AssociationQueryService aqs = utilities_.getLocalAssociationQueryService();
 		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<>();
 
 		// CodeSystemVersionReference entityCodeSystemVersion = getCodeSystemVersionForEntity(entity, readContext);
 
+		boolean localServiceFail = false;
+		
 		if (aqs != null)
 		{
-			Page page = new Page();
-			page.setMaxToReturn(500);
-			page.setPage(0);
-
-			AssociationQuery query = AssociationQueryBuilder.build(readContext);
-
-			NameOrURI codeSystemVersion = new NameOrURI();
-			codeSystemVersion.setUri(associationCodeSystemVersion.getAbout());
-			query.getRestrictions().setCodeSystemVersion(codeSystemVersion);
-
-			EntityNameOrURI predicate = new EntityNameOrURI();
-			predicate.setUri(predicateURI);
-			query.getRestrictions().setPredicate(predicate);
-
-			EntityNameOrURI referencedEntity = new EntityNameOrURI();
-			referencedEntity.setUri(entity.getUri());
-			ScopedEntityName sne = new ScopedEntityName();
-			sne.setName(entity.getName());
-			sne.setNamespace(entity.getNamespace());
-			referencedEntity.setEntityName(sne);
-
-			if (AssociationDirection.SOURCE_TO_TARGET == direction)
+			try
 			{
-				query.getRestrictions().setSourceEntity(referencedEntity);
-			}
-			else if (AssociationDirection.TARGET_TO_SOURCE == direction)
-			{
-				query.getRestrictions().setTargetEntity(referencedEntity);
-			}
-			else
-			{
-				throw new IllegalArgumentException("Unexpected direction parameter - " + direction);
-			}
-			while (true)
-			{
-				DirectoryResult<AssociationDirectoryEntry> temp = aqs.getResourceSummaries(query, null, page);
-				for (AssociationDirectoryEntry ade : temp.getEntries())
+				Page page = new Page();
+				page.setMaxToReturn(500);
+				page.setPage(0);
+	
+				AssociationQuery query = AssociationQueryBuilder.build(readContext);
+	
+				NameOrURI codeSystemVersion = new NameOrURI();
+				codeSystemVersion.setUri(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout());
+				query.getRestrictions().setCodeSystemVersion(codeSystemVersion);
+	
+				EntityNameOrURI predicate = new EntityNameOrURI();
+				predicate.setUri(predicateURI);
+				query.getRestrictions().setPredicate(predicate);
+	
+				EntityNameOrURI referencedEntity = new EntityNameOrURI();
+				referencedEntity.setUri(entity.getUri());
+				ScopedEntityName sne = new ScopedEntityName();
+				sne.setName(entity.getName());
+				sne.setNamespace(entity.getNamespace());
+				referencedEntity.setEntityName(sne);
+	
+				if (AssociationDirection.SOURCE_TO_TARGET == direction)
 				{
-					if (ade.getAssertedBy().getCodeSystem().getUri().equals(associationCodeSystemVersion.getVersionOf().getUri()))
-					// TODO fix this
-					// &&
-					// (StringUtils.isBlank(associationCodeSystemVersionURI) ||
-					// associationCodeSystemVersionURI.equals(ade.getAssertedBy().getVersion().getUri())))
-					{
-						thisLevelResults.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
-					}
+					query.getRestrictions().setSourceEntity(referencedEntity);
 				}
-				if (temp.isAtEnd())
+				else if (AssociationDirection.TARGET_TO_SOURCE == direction)
 				{
-					break;
+					query.getRestrictions().setTargetEntity(referencedEntity);
 				}
 				else
 				{
-					page.setPage(page.getPage() + 1);
+					throw new IllegalArgumentException("Unexpected direction parameter - " + direction);
+				}
+				while (true)
+				{
+					DirectoryResult<AssociationDirectoryEntry> temp = aqs.getResourceSummaries(query, null, page);
+					for (AssociationDirectoryEntry ade : temp.getEntries())
+					{
+						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+						{
+							thisLevelResults.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
+						}
+						else
+						{
+							logger_.warn("We crossed code systems during an association query - ignoring a result - !" + ade);
+						}
+					}
+					if (temp.isAtEnd())
+					{
+						break;
+					}
+					else
+					{
+						page.setPage(page.getPage() + 1);
+					}
 				}
 			}
+			catch (UnknownCodeSystemVersion e)
+			{
+				//TODO TEST if this is the right exception to catch 
+				localServiceFail = true;
+			}
 		}
-		else
+		
+		//Try the remote lookup route, if the local didn't work
+		if (localServiceFail || aqs == null)
 		{
 			boolean sourceToTarget;
 			if (AssociationDirection.SOURCE_TO_TARGET == direction)
@@ -617,12 +698,9 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				throw new IllegalArgumentException("Unexpected direction parameter - " + direction);
 			}
 
-			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionName(),
-					associationCodeSystemVersion.getVersionOf().getContent(), entity.getName(), sourceToTarget, altServiceHrefForCodeSystem, readContext);
-			if (href == null)
-			{
-				throw new RuntimeException("No service is available to resolve the hierarchy");
-			}
+			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
+					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(), entity.getName(), sourceToTarget, 
+					associationCodeSystemVersion.getHref(), readContext);
 
 			// TODO BUG switch over to predicate filtering directly, when fixed - https://github.com/cts2/cts2-framework/issues/28
 			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion));
@@ -647,8 +725,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 
 				int sizeBefore = resultHolder.size();
-				processLevel(nextItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, altServiceHrefForCodeSystem,
-						resultHolder, readContext);
+				processLevel(nextItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, resultHolder, readContext);
 				if (leafOnly && resultHolder.size() > sizeBefore)
 				{
 					// There were children from this node
@@ -670,21 +747,23 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	}
 
 	private ArrayList<CustomURIAndEntityName> gatherAssociationDirectoryResults(String href, String predicateURI,
-			CodeSystemVersionCatalogEntry associationCodeSystemVersion)
+			CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion)
 	{
 		AssociationDirectory result = Cts2RestClient.instance().getCts2Resource(href, AssociationDirectory.class);
 		ArrayList<CustomURIAndEntityName> resultHolder = new ArrayList<>();
 
 		for (AssociationDirectoryEntry ade : result.getEntryAsReference())
 		{
-			if (ade.getPredicate().getUri().equals(predicateURI)
-					&& ade.getAssertedBy().getCodeSystem().getUri().equals(associationCodeSystemVersion.getVersionOf().getUri()))
-			// TODO fix this
-			// &&
-			// (StringUtils.isBlank(associationCodeSystemVersionURI) ||
-			// associationCodeSystemVersionURI.equals(ade.getAssertedBy().getVersion().getUri())))
+			if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
 			{
-				resultHolder.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
+				if (ade.getPredicate().getUri().equals(predicateURI))
+				{
+					resultHolder.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
+				}
+			}
+			else
+			{
+				logger_.warn("We crossed code systems during an association query - ignoring a result - !" + ade);
 			}
 		}
 		if (result.getComplete() == CompleteDirectory.PARTIAL && StringUtils.isNotBlank(result.getNext()))
@@ -695,7 +774,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	}
 
 	private Long makeCacheKey(ValueSetDefinitionReadId definitionId, Set<NameOrURI> codeSystemVersions, NameOrURI tag, ResolvedValueSetResolutionEntityQuery query,
-			SortCriteria sortCriteria, ResolvedReadContext readContext, boolean entitySynopsis)
+			SortCriteria sortCriteria, ResolvedReadContext readContext)
 	{
 		long result = 1;
 		result = 37 * result + (definitionId == null ? 0 : definitionId.hashCode());
@@ -704,7 +783,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		result = 37 * result + hashQuery(query);
 		result = 37 * result + (sortCriteria == null ? 0 : sortCriteria.hashCode());
 		result = 37 * result + (readContext == null ? 0 : readContext.hashCode());
-		result = 37 * result + new Boolean(entitySynopsis).hashCode();
 		return result;
 	}
 
