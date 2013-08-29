@@ -95,12 +95,12 @@ public class ValueSetDefinitionStorage
 			}
 			else
 			{
-				throw new IllegalArgumentException("When ValueSetDefinition 'name' is specified, a ValueSet 'name' or 'uri' must also be specified");
+				throw new UnspecifiedCts2Exception("When ValueSetDefinition 'name' is specified, a ValueSet 'name' or 'uri' must also be specified");
 			}
 		}
 		else
 		{
-			throw new IllegalArgumentException("One of ValueSetDefinition 'name' or 'uri' must be specified");
+			throw new UnspecifiedCts2Exception("One of ValueSetDefinition 'name' or 'uri' must be specified");
 		}
 
 		ValueSetDefinitionWithLocalName vs = valueSets_.get(key);
@@ -128,7 +128,7 @@ public class ValueSetDefinitionStorage
 
 		if (StringUtils.isBlank(uri))
 		{
-			throw new IllegalArgumentException("The URI for the ValueSetDefinition (About field) must be supplied");
+			throw new UnspecifiedCts2Exception("The URI for the ValueSetDefinition (About field) must be supplied");
 		}
 
 		if (valueSets_.containsKey(uri))
@@ -138,7 +138,7 @@ public class ValueSetDefinitionStorage
 
 		if (vsd.getDefinedValueSet() == null)
 		{
-			throw new IllegalArgumentException("The 'DefinedValueSet' must be specified");
+			throw new UnspecifiedCts2Exception("The 'DefinedValueSet' must be specified");
 		}
 
 		try
@@ -161,7 +161,7 @@ public class ValueSetDefinitionStorage
 		{
 			if (StringUtils.isBlank(vsd.getDefinedValueSet().getHref()))
 			{
-				throw new IllegalArgumentException("The 'DefinedValueSet' must specify which ValueSet is being referenced");
+				throw new UnspecifiedCts2Exception("The 'DefinedValueSet' must specify which ValueSet is being referenced");
 			}
 			else
 			{
@@ -234,6 +234,7 @@ public class ValueSetDefinitionStorage
 		}
 
 		valueSets_.put(uri, new ValueSetDefinitionWithLocalName(vsd, localName, valueSetLocalName, valueSetUri));
+		vsd.getDefinedValueSet().setContent(valueSetLocalName);  //make sure what we store actually matches what the service we found it on is using
 		altNameHashes_.put(localName + ":" + valueSetLocalName, uri);
 		altNameHashes_.put(localName + ":" + valueSetUri, uri);
 
@@ -252,7 +253,7 @@ public class ValueSetDefinitionStorage
 			String uri = null;
 			if (id.getValueSet() == null)
 			{
-				throw new IllegalArgumentException("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
+				throw new UnspecifiedCts2Exception("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
 			}
 			else if (StringUtils.isNotBlank(id.getValueSet().getName()))
 			{
@@ -264,7 +265,7 @@ public class ValueSetDefinitionStorage
 			}
 			else
 			{
-				throw new IllegalArgumentException("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
+				throw new UnspecifiedCts2Exception("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
 			}
 
 			if (uri == null)
@@ -278,7 +279,7 @@ public class ValueSetDefinitionStorage
 		}
 		else
 		{
-			throw new IllegalArgumentException("A URI or Name is required for the ValueSetDefinition");
+			throw new UnspecifiedCts2Exception("A URI or Name is required for the ValueSetDefinition");
 		}
 
 		if (removed == null)

@@ -2,6 +2,7 @@ package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueS
 
 import javax.annotation.Resource;
 import org.springframework.stereotype.Component;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
@@ -19,13 +20,13 @@ public class ValueSetDefinitionMaintenanceServiceImpl extends ValueSetDefinition
 	@Override
 	public void updateChangeableMetadata(ValueSetDefinitionReadId identifier, UpdateChangeableMetadataRequest request)
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported operation");
 	}
 
 	@Override
 	public void updateResource(LocalIdValueSetDefinition resource)
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported operation");
 	}
 
 	@Override

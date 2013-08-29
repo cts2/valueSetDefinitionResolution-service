@@ -9,6 +9,7 @@ import edu.mayo.cts2.framework.model.core.MatchAlgorithmReference;
 import edu.mayo.cts2.framework.model.core.PredicateReference;
 import edu.mayo.cts2.framework.model.core.SortCriteria;
 import edu.mayo.cts2.framework.model.directory.DirectoryResult;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntryListEntry;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntrySummary;
@@ -81,24 +82,24 @@ public class ValueSetQueryServiceImpl extends ValueSetDefinitionSharedServiceBas
 	@Override
 	public Set<? extends MatchAlgorithmReference> getSupportedMatchAlgorithms()
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported Operation");
 	}
 
 	@Override
 	public Set<? extends ComponentReference> getSupportedSearchReferences()
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported Operation");
 	}
 
 	@Override
 	public Set<? extends ComponentReference> getSupportedSortReferences()
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported Operation");
 	}
 
 	@Override
 	public Set<PredicateReference> getKnownProperties()
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported Operation");
 	}
 }

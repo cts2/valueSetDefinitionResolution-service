@@ -1,6 +1,7 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetStorageStubs;
 
 import org.springframework.stereotype.Component;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
@@ -13,13 +14,13 @@ public class ValueSetMaintenanceServiceImpl extends ValueSetDefinitionSharedServ
 	@Override
 	public void updateChangeableMetadata(NameOrURI identifier, UpdateChangeableMetadataRequest request)
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported operation");
 	}
 
 	@Override
 	public void updateResource(ValueSetCatalogEntry resource)
 	{
-		throw new UnsupportedOperationException();
+		throw new UnspecifiedCts2Exception("Unsupported Operation");
 	}
 
 	@Override

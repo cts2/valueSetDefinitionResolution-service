@@ -1,6 +1,5 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices;
 
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -42,6 +41,7 @@ import edu.mayo.cts2.framework.model.entity.EntityDescription;
 import edu.mayo.cts2.framework.model.entity.EntityDescriptionBase;
 import edu.mayo.cts2.framework.model.entity.EntityDescriptionMsg;
 import edu.mayo.cts2.framework.model.entity.EntityReferenceMsg;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
@@ -80,13 +80,13 @@ public class Utilities
 	@Resource
 	private ServiceProvider valueSetDefinitionUtilsServiceProvider;
 
-	@Value("#{configProperties.valueSetServiceRootURL}") 
+	@Value("#{configProperties.getProperty('valueSetServiceRootURL') ?: ''}") 
 	protected String valueSetServiceRootURL_;
 
-	@Value("#{configProperties.valueSetDefinitionServiceRootURL}") 
+	@Value("#{configProperties.getProperty('valueSetDefinitionServiceRootURL') ?: ''}") 
 	protected String valueSetDefinitionServiceRootURL_;
 
-	@Value("#{configProperties.codeSystemAndEntitiesServicesRootURL}") 
+	@Value("#{configProperties.getProperty('codeSystemAndEntitiesServicesRootURL') ?: ''}") 
 	protected String codeSystemAndEntitiesServicesRootURL_;
 
 	private UrlConstructor urlConstructor_;
@@ -174,6 +174,7 @@ public class Utilities
 	{
 		if (cts2RestClient_ == null)
 		{
+			Cts2RestClient.connectTimeoutMS = 2000;
 			cts2RestClient_ = new Cts2RestClient(cts2Marshaller_, true);
 		}
 		return cts2RestClient_;
@@ -501,7 +502,7 @@ public class Utilities
 				}
 				else
 				{
-					throw new InvalidParameterException("URI is required within a  URIAndEntityName!");
+					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
 				EntityReference entityReference = edrs.availableDescriptions(e, readContext);
 				return new EntityReferenceAndHref(entityReference, getUrlConstructor().createEntityUrl(entityReference.getName()));
@@ -530,7 +531,7 @@ public class Utilities
 				}
 				else
 				{
-					throw new InvalidParameterException("URI is required within a  URIAndEntityName!");
+					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
 				return new EntityReferenceAndHref(getRestClient().getCts2Resource(
 						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "&list=false"
@@ -593,7 +594,7 @@ public class Utilities
 				}
 				else
 				{
-					throw new InvalidParameterException("URI is required within a  URIAndEntityName!");
+					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
 				EntityDescription entityDescription = edrs.read(eid, readContext);
 				resolvedEntity = (EntityDescriptionBase)entityDescription.getChoiceValue();
@@ -617,7 +618,7 @@ public class Utilities
 				}
 				else
 				{
-					throw new InvalidParameterException("URI is required within a URIAndEntityName!");
+					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
 				EntityDescription ed = getRestClient().getCts2Resource(
 						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
@@ -699,7 +700,7 @@ public class Utilities
 		}
 		else
 		{
-			throw new IllegalArgumentException("The Name or URI of the codeSystemVersion parameter must be populated");
+			throw new UnspecifiedCts2Exception("The Name or URI of the codeSystemVersion parameter must be populated");
 		}
 		
 		if (csvrs != null)

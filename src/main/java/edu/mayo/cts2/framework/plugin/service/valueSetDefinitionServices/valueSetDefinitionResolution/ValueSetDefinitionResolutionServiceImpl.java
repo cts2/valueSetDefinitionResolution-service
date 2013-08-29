@@ -1,6 +1,5 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution;
 
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,6 +46,7 @@ import edu.mayo.cts2.framework.model.core.types.AssociationDirection;
 import edu.mayo.cts2.framework.model.core.types.CompleteDirectory;
 import edu.mayo.cts2.framework.model.directory.DirectoryResult;
 import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
@@ -66,6 +66,7 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.types.TransitiveClosure;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.CodeSystemVersionCatalogEntryAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolver;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ExceptionBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SetUtilities;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.AssociationQueryBuilder;
@@ -87,7 +88,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	// TODO TEST threading
 	// TODO TEST property query reference
 	// TODO QUESTION Kevin about all of these boilerplate things above that I'm skipping
-	// TODO read timeouts on Cts2RestClient code
 
 	/*
 	 * This is used to cache entire result objects, so that we can instantly answer a request for page 2 of a query,
@@ -214,7 +214,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		if (sortCriteria != null && sortCriteria.getEntryAsReference().size() > 0)
 		{
 			// TODO LATER - implement sorting
-			throw new UnsupportedOperationException("Sorting is not yet implemented in this service");
+			throw new UnspecifiedCts2Exception("Sorting is not yet implemented in this service");
 		}
 
 		// TODO QUESTION how to handle query
@@ -232,7 +232,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 				catch (Exception e)
 				{
-					throw new UnsupportedOperationException("The requested code system version '" + nou.getName() + ":" + nou.getUri() + "' could not be resolved");
+					throw ExceptionBuilder.buildUnknownCodeSystemVersion("The requested code system version '" + nou.getName() + ":" + nou.getUri() +
+							"' could not be resolved");
 				}
 			}
 		}
@@ -273,7 +274,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 				if (pqr.getFilter() == null)
 				{
-					throw new IllegalArgumentException("A property filter must be provided within a PropertyQueryReference");
+					throw new UnspecifiedCts2Exception("A property filter must be provided within a PropertyQueryReference");
 				}
 				ResolvedFilter resolvedFilter = new ResolvedFilter();
 				resolvedFilter.setMatchAlgorithmReference(pqr.getFilter().getMatchAlgorithm());
@@ -366,7 +367,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 								if (er == null)
 								{
 									logger_.error("The entity '" + entity.toString() + "' from a SpecificEntityList could not be resolved");
-									throw new IllegalArgumentException("The entity '" + entity.toString() + "' from a SpecificEntityList could not be resolved");
+									throw ExceptionBuilder.buildUnknownEntity("The entity '" + entity.toString() + "' from a SpecificEntityList could not be resolved");
 								}
 								return er;
 							}
@@ -402,7 +403,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 			else if (entry instanceof ExternalValueSetDefinition)
 			{
-				throw new UnsupportedOperationException("This service does not know how to resolve an ExternalValueSetDefinition");
+				throw new UnspecifiedCts2Exception("This service does not know how to resolve an ExternalValueSetDefinition");
 			}
 			tempResults.add(itemList);
 		}
@@ -419,7 +420,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		if (!resolveMissingEntityDesignations(result, readContext))
 		{
-			throw new IllegalArgumentException("Failed to resolve all Entities");
+			throw ExceptionBuilder.buildUnknownEntity("Failed to resolve all Entities");
 		}
 		
 		for (EntityReferenceResolver ere : result)
@@ -475,7 +476,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		
 		if (csv == null)
 		{
-			throw new InvalidParameterException("Could not resolved the specified or requested CodeSystemVersion for " + codeSystem);
+			throw ExceptionBuilder.buildUnknownCodeSystemVersion("Could not resolved the specified or requested CodeSystemVersion for " + codeSystem);
 		}
 		return csv;
 	}
@@ -575,7 +576,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		URIAndEntityName referencedEntity = aer.getReferencedEntity();
 		if (aer.getReferencedEntity() == null)
 		{
-			throw new IllegalArgumentException("Referenced Entity is required");
+			throw new UnspecifiedCts2Exception("Referenced Entity is required");
 		}
 		else if (StringUtils.isBlank(referencedEntity.getName()))
 		{
@@ -648,7 +649,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 				else
 				{
-					throw new IllegalArgumentException("Unexpected direction parameter - " + direction);
+					throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
 				}
 				while (true)
 				{
@@ -695,7 +696,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 			else
 			{
-				throw new IllegalArgumentException("Unexpected direction parameter - " + direction);
+				throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
 			}
 
 			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
@@ -735,7 +736,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else
 		{
-			throw new IllegalArgumentException("Invalid Transitivity selection");
+			throw new UnspecifiedCts2Exception("Invalid Transitivity selection");
 		}
 		for (CustomURIAndEntityName item : thisLevelResults)
 		{

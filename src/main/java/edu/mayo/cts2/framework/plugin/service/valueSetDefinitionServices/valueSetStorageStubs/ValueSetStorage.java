@@ -72,7 +72,7 @@ public class ValueSetStorage
 
 		if (StringUtils.isBlank(name) && StringUtils.isBlank(id))
 		{
-			throw new IllegalArgumentException("Either the name or ID must be specified");
+			throw new UnspecifiedCts2Exception("Either the name or ID must be specified");
 		}
 
 		if (StringUtils.isBlank(id))
@@ -161,7 +161,7 @@ public class ValueSetStorage
 			if (vs == null)
 			{
 				logger_.error("Coding Error - ValueSet missing?", new Exception());
-				throw new RuntimeException("Internal Error");
+				throw new UnspecifiedCts2Exception("Internal Error");
 			}
 		}
 		else

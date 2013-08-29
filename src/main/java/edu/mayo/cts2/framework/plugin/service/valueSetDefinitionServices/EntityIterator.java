@@ -16,6 +16,7 @@ import edu.mayo.cts2.framework.model.core.types.CompleteDirectory;
 import edu.mayo.cts2.framework.model.directory.DirectoryResult;
 import edu.mayo.cts2.framework.model.entity.EntityDirectory;
 import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.types.ActiveOrAll;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.EntityQueryBuilder;
@@ -159,7 +160,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 		}
 		else
 		{
-			throw new IllegalArgumentException("No mechanism is available to resolve CodeSystem Entities");
+			throw new UnspecifiedCts2Exception("No mechanism is available to resolve CodeSystem Entities");
 		}
 
 		for (EntityDirectoryEntry ede : results)
