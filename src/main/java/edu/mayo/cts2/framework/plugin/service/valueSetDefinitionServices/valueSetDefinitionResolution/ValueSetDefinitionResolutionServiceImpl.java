@@ -39,6 +39,7 @@ import edu.mayo.cts2.framework.model.core.NameAndMeaningReference;
 import edu.mayo.cts2.framework.model.core.PredicateReference;
 import edu.mayo.cts2.framework.model.core.ScopedEntityName;
 import edu.mayo.cts2.framework.model.core.SortCriteria;
+import edu.mayo.cts2.framework.model.core.SortCriterion;
 import edu.mayo.cts2.framework.model.core.URIAndEntityName;
 import edu.mayo.cts2.framework.model.core.ValueSetDefinitionReference;
 import edu.mayo.cts2.framework.model.core.ValueSetReference;
@@ -66,13 +67,16 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.types.TransitiveClosure;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.CodeSystemVersionCatalogEntryAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceAndHref;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolver;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.EntityReferenceResolverComparator;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ExceptionBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SetUtilities;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.SupportedSorts;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ValueSetDefinitionSharedServiceBase;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.queries.AssociationQueryBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.CustomURIAndEntityName;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.ResolveReturn;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.ResultCache;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.SortCriterionComparator;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.valueSetDefinitionResolution.utility.ValueSetDefinitionEntryComparator;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQuery;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQueryService;
@@ -133,7 +137,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<? extends ComponentReference> getSupportedSortReferences()
 	{
-		return new HashSet<ComponentReference>();  // not supporting any sorts at the moment
+		HashSet<ComponentReference> sorts = new HashSet<ComponentReference>();  // not supporting any sorts at the moment
+		sorts.add(SupportedSorts.ALPHA_NUMERIC.asComponentReference());
+		sorts.add(SupportedSorts.ALPHABETIC.asComponentReference());
+		return sorts;
+		
 	}
 
 	/**
@@ -210,11 +218,30 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		{
 			return new ResolveReturn(rc, page);
 		}
+		
+		ArrayList<SupportedSorts> resolvedSortCriteria = new ArrayList<>();
 
-		if (sortCriteria != null && sortCriteria.getEntryAsReference().size() > 0)
+		if (sortCriteria != null)
 		{
-			// TODO LATER - implement sorting
-			throw new UnspecifiedCts2Exception("Sorting is not yet implemented in this service");
+			Collections.sort(sortCriteria.getEntryAsReference(), new SortCriterionComparator());
+			//verify the sort criteria is valid
+			for (SortCriterion sc : sortCriteria.getEntryAsReference())
+			{
+				boolean found = false;
+				for (SupportedSorts ss : SupportedSorts.values())
+				{
+					if (ss.getNiceName().equals(sc.getSortElement().getSpecialReference()))
+					{
+						resolvedSortCriteria.add(ss);
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+				{
+					throw new UnspecifiedCts2Exception("Unsupported sort algorithm '" + sc.getSortElement().getSpecialReference() + "'");
+				}
+			}
 		}
 
 		// TODO QUESTION how to handle query
@@ -433,6 +460,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		ResolvedValueSetHeader header = buildResolvedValueSetHeader(vsd.getDefinedValueSet().getContent(), vsd.getDefinedValueSet().getUri(), valueSetDefinitionName,
 				vsd.getAbout(), includesResolvedValueSets, resolvedUsingCodeSystems);
+		
+		if (resolvedSortCriteria.size() > 0)
+		{
+			Collections.sort(result, new EntityReferenceResolverComparator(resolvedSortCriteria));
+		}
 
 		ResultCache resultCache = new ResultCache(result, header);
 

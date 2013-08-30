@@ -19,7 +19,6 @@ public class ResolveReturn
 	public ResolveReturn(ResultCache resultCache, Page page)
 	{
 		this.resultCache_ = resultCache;
-		;
 		this.page_ = page;
 	}
 
