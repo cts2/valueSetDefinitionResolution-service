@@ -13,9 +13,9 @@ import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.exception.DuplicateValueSetURI;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
-import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinition;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.ExceptionBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices.Utilities;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetDefinitionReadId;
 
@@ -100,14 +100,14 @@ public class ValueSetDefinitionStorage
 		}
 		else
 		{
-			throw new UnspecifiedCts2Exception("One of ValueSetDefinition 'name' or 'uri' must be specified");
+			throw ExceptionBuilder.buildUnknownValueSetReference("One of ValueSetDefinition 'name' or 'uri' must be specified");
 		}
 
 		ValueSetDefinitionWithLocalName vs = valueSets_.get(key);
 
 		if (vs == null)
 		{
-			throw new UnknownValueSetDefinition();
+			throw ExceptionBuilder.buildUnknownValueSetReference("Valueset was not found");
 		}
 		return vs.vsd_;
 	}
@@ -253,7 +253,7 @@ public class ValueSetDefinitionStorage
 			String uri = null;
 			if (id.getValueSet() == null)
 			{
-				throw new UnspecifiedCts2Exception("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
+				throw ExceptionBuilder.buildUnknownValueSetReference("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
 			}
 			else if (StringUtils.isNotBlank(id.getValueSet().getName()))
 			{
@@ -270,7 +270,7 @@ public class ValueSetDefinitionStorage
 
 			if (uri == null)
 			{
-				throw new UnknownValueSetDefinition();
+				throw ExceptionBuilder.buildUnknownValueSetReference("No URI found");
 			}
 			else
 			{
@@ -284,7 +284,7 @@ public class ValueSetDefinitionStorage
 
 		if (removed == null)
 		{
-			throw new UnknownValueSetDefinition();
+			throw ExceptionBuilder.buildUnknownValueSetReference("Remove failed - ValueSet was not present");
 		}
 
 		// Clean up the altNameHashes

@@ -78,7 +78,7 @@ public class Utilities
 	protected Cts2Marshaller cts2Marshaller_;
 	
 	@Resource
-	private ServiceProvider valueSetDefinitionUtilsServiceProvider;
+	private ServiceProvider serviceProvider;
 
 	@Value("#{configProperties.getProperty('valueSetServiceRootURL') ?: ''}") 
 	protected String valueSetServiceRootURL_;
@@ -286,7 +286,7 @@ public class Utilities
 	 * @param href 3rd
 	 * @return
 	 */
-	protected ValueSetCatalogEntry lookupValueSetByAny(String uri, String localName, String href, ResolvedReadContext readContext)
+	public ValueSetCatalogEntry lookupValueSetByAny(String uri, String localName, String href, ResolvedReadContext readContext)
 	{
 		if (StringUtils.isNotBlank(uri))
 		{
@@ -302,7 +302,7 @@ public class Utilities
 		}
 		else
 		{
-			throw new UnknownValueSet();
+			throw ExceptionBuilder.buildUnknownValueSetReference("No valid parameters specified to enable resolving the Complete ValueSet reference");
 		}
 	}
 
@@ -346,7 +346,7 @@ public class Utilities
 				}
 				else
 				{
-					throw new UnknownValueSetDefinition();
+					throw ExceptionBuilder.buildUnknownValueSetReference("Missing requird parameters");
 				}
 				ValueSetDefinitionMsg temp = getRestClient().getCts2Resource(address, ValueSetDefinitionMsg.class);
 				definition = new LocalIdValueSetDefinition(temp.getValueSetDefinition());
@@ -370,7 +370,7 @@ public class Utilities
 		catch (Exception e)
 		{
 			logger_.error("Unable to lookup requested ValueSetDefinition", e);
-			throw new UnknownValueSetDefinition();
+			throw ExceptionBuilder.buildUnknownValueSetReference("Unable to lookup requested ValueSetDefinition " + e);
 		}
 
 		if (definition == null)
@@ -963,50 +963,50 @@ public class Utilities
 	}
 	
 	//TODO FRAMEWORK - We need a way to have multiple service providers - https://github.com/cts2/cts2-framework/issues/29
-	//within a single instance - as the service provider that I am providing above isn't going to return hits for the unimplemented methods below.
+	//within a single instance - as the service provider that I am providing above isn't going to return hits for some methods below.
 	
 	public ValueSetDefinitionQueryService getLocalValueSetDefinitionQueryService()
 	{
-		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetDefinitionQueryService.class);
+		return serviceProvider.getService(ValueSetDefinitionQueryService.class);
 	}
 	
 	public ValueSetReadService getLocalValueSetReadService()
 	{
-		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetReadService.class);
+		return serviceProvider.getService(ValueSetReadService.class);
 	}
 	
 	public ValueSetMaintenanceService getLocalValueSetMaintenanceService()
 	{
-		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetMaintenanceService.class);
+		return serviceProvider.getService(ValueSetMaintenanceService.class);
 	}
 	
 	public ValueSetDefinitionReadService getLocalValueSetDefinitionReadService()
 	{
-		return valueSetDefinitionUtilsServiceProvider.getService(ValueSetDefinitionReadService.class);
+		return serviceProvider.getService(ValueSetDefinitionReadService.class);
 	}
 	
 	public EntityDescriptionReadService getLocalEntityDescriptionReadService()
 	{
-		return null;
+		return serviceProvider.getService(EntityDescriptionReadService.class);
 	}
 
 	public EntityDescriptionQueryService getLocalEntityDescriptionQueryService()
 	{
-		return null;
+		return serviceProvider.getService(EntityDescriptionQueryService.class);
 	}
 
 	public CodeSystemVersionReadService getLocalCodeSystemVersionReadService()
 	{
-		return null;
+		return serviceProvider.getService(CodeSystemVersionReadService.class);
 	}
 
 	public CodeSystemVersionQueryService getLocalCodeSystemVersionQueryService()
 	{
-		return null;
+		return serviceProvider.getService(CodeSystemVersionQueryService.class);
 	}
 
 	public AssociationQueryService getLocalAssociationQueryService()
 	{
-		return null;
+		return serviceProvider.getService(AssociationQueryService.class);
 	}
 }

@@ -9,7 +9,7 @@
 	</parent>
 
 	<artifactId>valueSetDefinitionResolution-service</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>cts-1.1-0.1-SNAPSHOT</version>
 	<packaging>bundle</packaging>
 
 	<description>An Implementation of a CTS 2 ValueSetDefinitionResolutionService plugin for the CTS2 framework, which also includes basic Maintenance, Query and Read Services</description>
@@ -145,7 +145,7 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.2.1</version>
 				<configuration>
-					<finalName>${artifactId}</finalName>
+					<finalName>${project.artifactId}</finalName>
 					<descriptors>
 						<descriptor>src/assemble/projectDistribute.xml</descriptor>
 					</descriptors>

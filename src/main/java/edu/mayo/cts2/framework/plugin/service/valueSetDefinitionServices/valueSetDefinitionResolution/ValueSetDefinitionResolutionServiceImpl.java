@@ -52,6 +52,7 @@ import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
+import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.AssociatedEntitiesReference;
 import edu.mayo.cts2.framework.model.valuesetdefinition.CompleteCodeSystemReference;
 import edu.mayo.cts2.framework.model.valuesetdefinition.CompleteValueSetReference;
@@ -318,8 +319,29 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			else if (entry instanceof CompleteValueSetReference)
 			{
 				CompleteValueSetReference completeValueSetRef = (CompleteValueSetReference) entry;
-				ValueSetDefinitionReadId nestedValueSetDefinitionReadId = new ValueSetDefinitionReadId(completeValueSetRef.getValueSetDefinition().getUri());
-				nestedValueSetDefinitionReadId.setName(completeValueSetRef.getValueSetDefinition().getContent());
+				ValueSetDefinitionReadId nestedValueSetDefinitionReadId;
+				if (completeValueSetRef.getValueSetDefinition() == null)
+				{
+					if (completeValueSetRef.getValueSet() == null)
+					{
+						throw ExceptionBuilder.buildUnknownValueSetReference("No valid parameters specified to enable resolving the Complete ValueSet reference");
+					}
+					ValueSetCatalogEntry vsce = utilities_.lookupValueSetByAny(completeValueSetRef.getValueSet().getUri(), completeValueSetRef.getValueSet().getContent(), 
+								completeValueSetRef.getValueSet().getHref(), readContext);
+					
+					ValueSetDefinitionReference vsdr = vsce.getCurrentDefinition();
+					if (vsdr == null)
+					{
+						logger_.warn("No Valueset Definition set to CURRENT for " + vsdr);
+					}
+					nestedValueSetDefinitionReadId = new ValueSetDefinitionReadId(vsdr.getValueSetDefinition().getUri());
+					nestedValueSetDefinitionReadId.setName(vsdr.getValueSetDefinition().getContent());
+				}
+				else
+				{
+					nestedValueSetDefinitionReadId = new ValueSetDefinitionReadId(completeValueSetRef.getValueSetDefinition().getUri());
+					nestedValueSetDefinitionReadId.setName(completeValueSetRef.getValueSetDefinition().getContent());
+				}
 
 				NameOrURI nestedValueSet = new NameOrURI();
 				if (completeValueSetRef.getValueSet() != null)
@@ -508,7 +530,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		
 		if (csv == null)
 		{
-			throw ExceptionBuilder.buildUnknownCodeSystemVersion("Could not resolved the specified or requested CodeSystemVersion for " + codeSystem);
+			throw ExceptionBuilder.buildUnknownCodeSystemVersion("Could not resolve the specified or requested CodeSystemVersion for " + codeSystem);
 		}
 		return csv;
 	}
