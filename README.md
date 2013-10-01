@@ -9,8 +9,14 @@ An Implementation of the ValueSetDefinitionResolution Service
 What It Includes
 
 
-* An ServiceProvider implementation
-* An ValueSetDefinitionResolution Service implementation
+* A ServiceProvider implementation
+* A ValueSetDefinitionResolution Service implementation
+
+It also includes:
+* Transient, basic implementations of the ValueSetDefinition Maintenance/Query/Read Services
+* Transient basic implementations of the ValueSet Maintenance/Query/Read Services.
+
+These might be useful with a stand-alone deployment... but are not used when this library is added into the exist-service implementation, for example.
 
 
 For debugging purposes, you may find it useful to edit this file: cts2-framework/webapp/src/main/resources/log4j.xml
