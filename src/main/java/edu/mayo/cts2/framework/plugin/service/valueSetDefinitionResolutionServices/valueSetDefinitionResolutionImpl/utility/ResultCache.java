@@ -1,6 +1,6 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility;
 
-import java.util.ArrayList;
+import java.util.List;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ResolvedValueSetHeader;
 
 /**
@@ -12,16 +12,16 @@ import edu.mayo.cts2.framework.model.valuesetdefinition.ResolvedValueSetHeader;
  */
 public class ResultCache
 {
-	private ArrayList<EntityReferenceResolver> items_;
+	private List<EntityReferenceResolver> items_;
 	private ResolvedValueSetHeader header_;
 
-	public ResultCache(ArrayList<EntityReferenceResolver> items, ResolvedValueSetHeader header)
+	public ResultCache(List<EntityReferenceResolver> items, ResolvedValueSetHeader header)
 	{
 		items_ = items;
 		header_ = header;
 	}
 
-	public ArrayList<EntityReferenceResolver> getItems()
+	public List<EntityReferenceResolver> getItems()
 	{
 		return items_;
 	}

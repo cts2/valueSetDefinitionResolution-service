@@ -51,6 +51,7 @@ import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
+import edu.mayo.cts2.framework.model.service.core.Query;
 import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.AssociatedEntitiesReference;
@@ -78,6 +79,7 @@ import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServic
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.ResultCache;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.SortCriterionComparator;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.ValueSetDefinitionEntryComparator;
+import edu.mayo.cts2.framework.service.command.restriction.ResolvedValueSetResolutionEntityRestrictions;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQuery;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQueryService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ResolvedValueSetResolutionEntityQuery;
@@ -244,7 +246,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 
-		// TODO QUESTION how to handle query
+		// TODO QUESTION more questions about query - directory oddities?
 		
 		//Lookup all of the codeSystemVersions
 		final HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions = new HashMap<>();
@@ -254,6 +256,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			{
 				try
 				{
+					//TODO - if they supply resolvedcodesystem versions, are we only allowed to use these?  Or do they just get preference?
 					CodeSystemVersionCatalogEntryAndHref csvce = utilities_.lookupCodeSystemVersion(nou, null, readContext);
 					resolvedCodeSystemVersions.put(csvce.getCodeSystemVersionCatalogEntry().getAbout(), csvce);
 				}
@@ -265,7 +268,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 
-		ArrayList<EntityReferenceResolver> result = new ArrayList<>();
+		List<EntityReferenceResolver> result = new ArrayList<>();
 		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<>();
 		HashSet<CodeSystemVersionReference> resolvedUsingCodeSystems = new HashSet<>();
 
@@ -482,6 +485,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		ResolvedValueSetHeader header = buildResolvedValueSetHeader(vsd.getDefinedValueSet().getContent(), vsd.getDefinedValueSet().getUri(), valueSetDefinitionName,
 				vsd.getAbout(), includesResolvedValueSets, resolvedUsingCodeSystems);
 		
+		result = processPostResolveQueryFilter(result, query);
+		
 		if (resolvedSortCriteria.size() > 0)
 		{
 			Collections.sort(result, new EntityReferenceResolverComparator(resolvedSortCriteria));
@@ -492,6 +497,123 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		resultCache_.put(cacheKey, resultCache);
 
 		return new ResolveReturn(resultCache, page);
+	}
+	
+	private List<EntityReferenceResolver> processPostResolveQueryFilter(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query)
+	{
+		if (query == null)
+		{
+			return incoming;
+		}
+		
+		List<EntityReferenceResolver> filteredResult = new ArrayList<>();
+		boolean filterApplied = false;
+		
+		if (query.getFilterComponent() != null && query.getFilterComponent().size() > 0)
+		{
+			filterApplied = true;
+			filteredResult = passesFilters(incoming, query.getFilterComponent());
+		}
+		
+		if (query.getQuery() != null)
+		{
+			filterApplied = true;
+			filteredResult = passesQuery((filterApplied ? filteredResult : incoming), query.getQuery());
+		}
+		
+		if (query.getResolvedValueSetResolutionEntityRestrictions() != null)
+		{
+			filterApplied = true;
+			filteredResult = passesEntityRestrictions((filterApplied ? filteredResult : incoming), query.getResolvedValueSetResolutionEntityRestrictions());
+		}
+		
+		return filterApplied ? filteredResult : incoming;
+	}
+	
+	private List<EntityReferenceResolver> passesQuery(List<EntityReferenceResolver> incoming, Query query)
+	{
+		List<EntityReferenceResolver> result = new ArrayList<>();
+		
+		List<EntityReferenceResolver> result1 = null;
+		if (query.getQuery6Choice() != null)
+		{
+			result1 = passesQuery(incoming, query.getQuery6Choice().getQuery1(), query.getQuery6Choice().getDirectoryUri1());
+		}
+		
+		List<EntityReferenceResolver> result2 = null;
+		if (query.getQuery6Choice() != null)
+		{
+			result2 = passesQuery(incoming, query.getQuery6Choice2().getQuery2(), query.getQuery6Choice2().getDirectoryUri2());
+		}
+		
+		if ((result1 != null || result2 != null) && query.getSetOperation() != null)
+		{
+			//TODO QUERYFILTER  process set logic
+		}
+		
+		if (query.getFilterComponent() != null && query.getMatchAlgorithm() != null && query.getMatchValue() != null)
+		{
+			ResolvedFilter rf = new ResolvedFilter();
+			//TODO QUERYFILTER build ResolvedFilter
+			HashSet<ResolvedFilter> temp = new HashSet<>();
+			temp.add(rf);
+			result = passesFilters(result, temp);
+		}
+		return incoming;
+	}
+	
+	private List<EntityReferenceResolver> passesQuery(List<EntityReferenceResolver> incoming, Query queryChoice, String directoryUriChoice)
+	{
+		if (queryChoice != null)
+		{
+			return passesQuery(incoming, queryChoice);
+		}
+		else if (StringUtils.isNotBlank(directoryUriChoice))
+		{
+			//TODO QUERYFILTER  implement directory URI
+			return incoming;
+		}
+		else
+		{
+			return incoming;
+		}
+	}
+	
+	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions)
+	{
+		//ArrayList<EntityReferenceResolver> result = new ArrayList<>();
+		
+		//TODO QUERYFILTER  implement entityRestrictions
+		return incoming;
+	}
+	
+	private List<EntityReferenceResolver> passesFilters(List<EntityReferenceResolver> incoming, Set<ResolvedFilter> filters)
+	{
+		ArrayList<EntityReferenceResolver> result = new ArrayList<>();
+		
+		for (EntityReferenceResolver ere : incoming)
+		{
+			boolean passed = true;
+			for (ResolvedFilter filter : filters)
+			{
+				if (!passesFilter(ere, filter))
+				{
+					passed = false;
+					break;
+				}
+			}
+			if (passed)
+			{
+				result.add(ere);
+			}
+		}
+		return result;
+	}
+	
+	private boolean passesFilter(EntityReferenceResolver ere, ResolvedFilter filter)
+	{
+		//TODO QUERYFILTER  implement filter
+		return true;
 	}
 	
 	private CodeSystemVersionCatalogEntryAndHref pickBestCodeSystemVersion(CodeSystemVersionReference codeSystemVersion, CodeSystemReference codeSystem, 
