@@ -5,6 +5,7 @@ import edu.mayo.cts2.framework.model.core.TsAnyType;
 import edu.mayo.cts2.framework.model.service.exception.CTS2Exception;
 import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
+import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 
 public class ExceptionBuilder
@@ -23,9 +24,16 @@ public class ExceptionBuilder
 		return e;
 	}
 	
-	public static UnknownValueSetDefinition buildUnknownValueSetReference(String message)
+	public static UnknownValueSetDefinition buildUnknownValueSetDefinition(String message)
 	{
 		UnknownValueSetDefinition e = new UnknownValueSetDefinition();
+		addMessage(message, e);
+		return e;
+	}
+	
+	public static UnknownValueSet buildUnknownValueSet(String message)
+	{
+		UnknownValueSet e = new UnknownValueSet();
 		addMessage(message, e);
 		return e;
 	}

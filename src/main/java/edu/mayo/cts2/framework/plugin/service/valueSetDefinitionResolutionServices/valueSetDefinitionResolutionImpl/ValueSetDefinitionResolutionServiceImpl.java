@@ -326,7 +326,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				{
 					if (completeValueSetRef.getValueSet() == null)
 					{
-						throw ExceptionBuilder.buildUnknownValueSetReference("No valid parameters specified to enable resolving the Complete ValueSet reference");
+						throw ExceptionBuilder.buildUnknownValueSetDefinition("No valid parameters specified to enable resolving the Complete ValueSet reference");
 					}
 					ValueSetCatalogEntry vsce = utilities_.lookupValueSetByAny(completeValueSetRef.getValueSet().getUri(), completeValueSetRef.getValueSet().getContent(), 
 								completeValueSetRef.getValueSet().getHref(), readContext);
@@ -367,6 +367,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				ResolvedValueSetHeader rvsh = null;
 				while (true)
 				{
+					//pass in outer instead, but verify that inner isn't at odds with it.
 					//TODO QUESTION about how nestedCodeSystemVersions are handled with the specified codesystemVersions
 					ResolveReturn rr = resolveHelper(nestedValueSetDefinitionReadId, nestedCodeSystemVersions, tag, null, null, readContext, subPage);
 					if (rvsh == null)
@@ -579,6 +580,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 	}
 	
+	//TODO figure out how to use Kevin's generic code that already handles a lot of this....
 	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions)
 	{
 		//ArrayList<EntityReferenceResolver> result = new ArrayList<>();
@@ -837,7 +839,9 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 						}
 						else
 						{
-							logger_.warn("We crossed code systems during an association query - ignoring a result - !" + ade);
+							logger_.warn("We crossed code systems during an association query (gather).  Expected '" 
+									+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
+									+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
 						}
 					}
 					if (temp.isAtEnd())
@@ -936,10 +940,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				{
 					resultHolder.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
 				}
+				logger_.warn("Predicate URIs don't match?  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
 			}
 			else
 			{
-				logger_.warn("We crossed code systems during an association query - ignoring a result - !" + ade);
+				logger_.warn("We crossed code systems during an association query (gather).  Expected '" 
+						+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
+						+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
 			}
 		}
 		if (result.getComplete() == CompleteDirectory.PARTIAL && StringUtils.isNotBlank(result.getNext()))

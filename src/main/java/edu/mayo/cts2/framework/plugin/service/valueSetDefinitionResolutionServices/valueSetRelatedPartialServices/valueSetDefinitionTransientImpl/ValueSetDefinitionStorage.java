@@ -100,14 +100,14 @@ public class ValueSetDefinitionStorage
 		}
 		else
 		{
-			throw ExceptionBuilder.buildUnknownValueSetReference("One of ValueSetDefinition 'name' or 'uri' must be specified");
+			throw ExceptionBuilder.buildUnknownValueSetDefinition("One of ValueSetDefinition 'name' or 'uri' must be specified");
 		}
 
 		ValueSetDefinitionWithLocalName vs = valueSets_.get(key);
 
 		if (vs == null)
 		{
-			throw ExceptionBuilder.buildUnknownValueSetReference("Valueset was not found");
+			throw ExceptionBuilder.buildUnknownValueSetDefinition("Valueset was not found");
 		}
 		return vs.vsd_;
 	}
@@ -253,7 +253,7 @@ public class ValueSetDefinitionStorage
 			String uri = null;
 			if (id.getValueSet() == null)
 			{
-				throw ExceptionBuilder.buildUnknownValueSetReference("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
+				throw ExceptionBuilder.buildUnknownValueSetDefinition("A URI or Name is required for the ValueSet when the ValueSetDefinitionURI is not provided");
 			}
 			else if (StringUtils.isNotBlank(id.getValueSet().getName()))
 			{
@@ -270,7 +270,7 @@ public class ValueSetDefinitionStorage
 
 			if (uri == null)
 			{
-				throw ExceptionBuilder.buildUnknownValueSetReference("No URI found");
+				throw ExceptionBuilder.buildUnknownValueSetDefinition("No URI found");
 			}
 			else
 			{
@@ -284,7 +284,7 @@ public class ValueSetDefinitionStorage
 
 		if (removed == null)
 		{
-			throw ExceptionBuilder.buildUnknownValueSetReference("Remove failed - ValueSet was not present");
+			throw ExceptionBuilder.buildUnknownValueSetDefinition("Remove failed - ValueSet was not present");
 		}
 
 		// Clean up the altNameHashes

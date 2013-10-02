@@ -220,7 +220,7 @@ public class Utilities
 		}
 		if (vs == null)
 		{
-			throw new UnknownValueSet();
+			throw ExceptionBuilder.buildUnknownValueSet(uri);
 		}
 		return vs;
 	}
@@ -233,14 +233,14 @@ public class Utilities
 			ValueSetCatalogEntry vs = getRestClient().getCts2Resource(href, ValueSetCatalogEntry.class);
 			if (vs == null)
 			{
-				throw new UnknownValueSet();
+				throw ExceptionBuilder.buildUnknownValueSet(href);
 			}
 			return vs;
 		}
 		catch (Exception e)
 		{
 			logger_.error("Lookup failed", e);
-			throw new UnknownValueSet();
+			throw ExceptionBuilder.buildUnknownValueSet(href);
 		}
 	}
 
@@ -271,11 +271,11 @@ public class Utilities
 		catch (Exception e)
 		{
 			logger_.error("Lookup failed", e);
-			throw new UnknownValueSet();
+			throw ExceptionBuilder.buildUnknownValueSet(localName);
 		}
 		if (vs == null)
 		{
-			throw new UnknownValueSet();
+			throw ExceptionBuilder.buildUnknownValueSet(localName);
 		}
 		return vs;
 	}
@@ -305,7 +305,7 @@ public class Utilities
 		}
 		else
 		{
-			throw ExceptionBuilder.buildUnknownValueSetReference("No valid parameters specified to enable resolving the Complete ValueSet reference");
+			throw ExceptionBuilder.buildUnknownValueSetDefinition("No valid parameters specified to enable resolving the Complete ValueSet reference");
 		}
 	}
 
@@ -349,7 +349,7 @@ public class Utilities
 				}
 				else
 				{
-					throw ExceptionBuilder.buildUnknownValueSetReference("Missing requird parameters");
+					throw ExceptionBuilder.buildUnknownValueSetDefinition("Missing requird parameters");
 				}
 				ValueSetDefinitionMsg temp = getRestClient().getCts2Resource(address, ValueSetDefinitionMsg.class);
 				definition = new LocalIdValueSetDefinition(temp.getValueSetDefinition());
@@ -373,12 +373,12 @@ public class Utilities
 		catch (Exception e)
 		{
 			logger_.error("Unable to lookup requested ValueSetDefinition", e);
-			throw ExceptionBuilder.buildUnknownValueSetReference("Unable to lookup requested ValueSetDefinition " + e);
+			throw ExceptionBuilder.buildUnknownValueSetDefinition("Unable to lookup requested ValueSetDefinition " + e);
 		}
 
 		if (definition == null)
 		{
-			throw new UnknownValueSetDefinition();
+			throw ExceptionBuilder.buildUnknownValueSetDefinition(definitionId.toString());
 		}
 		return definition;
 	}
