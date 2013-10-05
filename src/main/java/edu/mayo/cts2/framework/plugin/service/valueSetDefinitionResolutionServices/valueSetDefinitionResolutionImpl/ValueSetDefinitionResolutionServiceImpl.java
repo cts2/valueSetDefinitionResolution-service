@@ -791,6 +791,21 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		boolean localServiceFail = false;
 		
+		boolean sourceToTarget;
+		if (AssociationDirection.SOURCE_TO_TARGET == direction)
+		{
+			sourceToTarget = true;
+		}
+		else if (AssociationDirection.TARGET_TO_SOURCE == direction)
+		{
+			sourceToTarget = false;
+		}
+		else
+		{
+			throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
+		}
+
+		
 		if (aqs != null)
 		{
 			try
@@ -816,17 +831,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				sne.setNamespace(entity.getNamespace());
 				referencedEntity.setEntityName(sne);
 	
-				if (AssociationDirection.SOURCE_TO_TARGET == direction)
+				if (sourceToTarget)
 				{
 					query.getRestrictions().setSourceEntity(referencedEntity);
 				}
-				else if (AssociationDirection.TARGET_TO_SOURCE == direction)
-				{
-					query.getRestrictions().setTargetEntity(referencedEntity);
-				}
 				else
 				{
-					throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
+					query.getRestrictions().setTargetEntity(referencedEntity);
 				}
 				while (true)
 				{
@@ -835,7 +846,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					{
 						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
 						{
-							thisLevelResults.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
+							thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
 						}
 						else
 						{
@@ -864,26 +875,12 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		//Try the remote lookup route, if the local didn't work
 		if (localServiceFail || aqs == null)
 		{
-			boolean sourceToTarget;
-			if (AssociationDirection.SOURCE_TO_TARGET == direction)
-			{
-				sourceToTarget = true;
-			}
-			else if (AssociationDirection.TARGET_TO_SOURCE == direction)
-			{
-				sourceToTarget = false;
-			}
-			else
-			{
-				throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
-			}
-
 			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
 					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(), entity.getName(), sourceToTarget, 
 					associationCodeSystemVersion.getHref(), readContext);
 
 			// TODO BUG switch over to predicate filtering directly, when fixed - https://github.com/cts2/cts2-framework/issues/28
-			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion));
+			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion, sourceToTarget));
 		}
 
 		if (TransitiveClosure.DIRECTLY_ASSOCIATED == transitivity)
@@ -901,6 +898,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				{
 					// Just detected a cycle. No further processing for this item.
 					it.remove();
+					continue;
+				}
+				if (nextItem.getEntity().getUri().equals(entity.getUri()))
+				{
+					//Referenced itself??
+					//leave it, but don't recurse...
+					logger_.warn("While processing '" + entity + "' to find transitive closure, found a self reference!");
 					continue;
 				}
 
@@ -927,7 +931,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	}
 
 	private ArrayList<CustomURIAndEntityName> gatherAssociationDirectoryResults(String href, String predicateURI,
-			CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion)
+			CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion, boolean sourceToTarget)
 	{
 		AssociationDirectory result = Cts2RestClient.instance().getCts2Resource(href, AssociationDirectory.class);
 		ArrayList<CustomURIAndEntityName> resultHolder = new ArrayList<>();
@@ -938,7 +942,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			{
 				if (ade.getPredicate().getUri().equals(predicateURI))
 				{
-					resultHolder.add(new CustomURIAndEntityName(ade.getTarget().getEntity()));
+					resultHolder.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
 				}
 				logger_.warn("Predicate URIs don't match?  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
 			}
@@ -951,7 +955,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		if (result.getComplete() == CompleteDirectory.PARTIAL && StringUtils.isNotBlank(result.getNext()))
 		{
-			resultHolder.addAll(gatherAssociationDirectoryResults(result.getNext(), predicateURI, associationCodeSystemVersion));
+			resultHolder.addAll(gatherAssociationDirectoryResults(result.getNext(), predicateURI, associationCodeSystemVersion, sourceToTarget));
 		}
 		return resultHolder;
 	}
