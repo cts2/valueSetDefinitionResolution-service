@@ -35,4 +35,12 @@ public class EntityReferenceAndHref
 	{
 		return href_;
 	}
+
+	@Override
+	public String toString()
+	{
+		return entityReference_.toString();
+	}
+	
+	
 }

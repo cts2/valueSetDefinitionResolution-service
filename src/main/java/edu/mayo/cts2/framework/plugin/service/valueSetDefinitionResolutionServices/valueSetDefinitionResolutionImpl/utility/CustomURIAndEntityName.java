@@ -36,4 +36,12 @@ public class CustomURIAndEntityName
 	{
 		return entity;
 	}
+
+	@Override
+	public String toString()
+	{
+		return entity.toString();
+	}
+	
+	
 }
