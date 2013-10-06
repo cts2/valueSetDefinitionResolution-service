@@ -46,7 +46,6 @@ import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.types.ActiveOrAll;
-import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionDirectoryEntry;
@@ -600,7 +599,10 @@ public class Utilities
 					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
 				EntityDescription entityDescription = edrs.read(eid, readContext);
-				resolvedEntity = (EntityDescriptionBase)entityDescription.getChoiceValue();
+				if (entityDescription != null)
+				{
+					resolvedEntity = (EntityDescriptionBase)entityDescription.getChoiceValue();
+				}
 			}
 			else if (StringUtils.isNotBlank(codeSystemAndEntitiesServicesRootURL_))
 			{
@@ -626,7 +628,10 @@ public class Utilities
 				EntityDescription ed = getRestClient().getCts2Resource(
 						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
 								+ parameterizeReadContext(readContext, false), EntityDescriptionMsg.class).getEntityDescription();
-				resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();
+				if (ed != null)
+				{
+					resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();
+				}
 			}
 			else
 			{
@@ -635,7 +640,7 @@ public class Utilities
 		}
 		catch (Exception e)
 		{
-			logger_.warn("Error looking up EntityDesignation", e);
+			logger_.warn("Error looking up EntityDesignation '" + entity + "'", e);
 		}
 
 		//Our local service didn't work, but perhaps, if there is an href on the entity - that will work.  Give it a try.
@@ -656,7 +661,10 @@ public class Utilities
 				uriTemp += parameterizeReadContext(readContext, true);
 
 				EntityDescription ed = getRestClient().getCts2Resource(uriTemp, EntityDescriptionMsg.class).getEntityDescription();
-				resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();
+				if (ed != null)
+				{
+					resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();
+				}
 			}
 			catch (Exception e)
 			{
