@@ -53,6 +53,7 @@ import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.Query;
 import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
+import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.AssociatedEntitiesReference;
 import edu.mayo.cts2.framework.model.valuesetdefinition.CompleteCodeSystemReference;
@@ -472,7 +473,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		if (!resolveMissingEntityDesignations(result, readContext))
 		{
-			throw ExceptionBuilder.buildUnknownEntity("Failed to resolve all Entities");
+			throw ExceptionBuilder.buildUnknownEntity("Failed to resolve all Entities - see log for details");
 		}
 		
 		for (EntityReferenceResolver ere : result)
@@ -512,20 +513,21 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		
 		if (query.getFilterComponent() != null && query.getFilterComponent().size() > 0)
 		{
-			filterApplied = true;
 			filteredResult = passesFilters(incoming, query.getFilterComponent());
+			filterApplied = true;
 		}
 		
 		if (query.getQuery() != null)
 		{
-			filterApplied = true;
 			filteredResult = passesQuery((filterApplied ? filteredResult : incoming), query.getQuery());
+			filterApplied = true;
 		}
 		
-		if (query.getResolvedValueSetResolutionEntityRestrictions() != null)
+		if (query.getResolvedValueSetResolutionEntityRestrictions() != null && query.getResolvedValueSetResolutionEntityRestrictions().getEntities() != null 
+				&& query.getResolvedValueSetResolutionEntityRestrictions().getEntities().size() > 0)
 		{
-			filterApplied = true;
 			filteredResult = passesEntityRestrictions((filterApplied ? filteredResult : incoming), query.getResolvedValueSetResolutionEntityRestrictions());
+			filterApplied = true;
 		}
 		
 		return filterApplied ? filteredResult : incoming;
@@ -687,7 +689,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * Returns true if all were resolved without error, false otherwise.
 	 * @return
 	 */
-	private boolean resolveMissingEntityDesignations(List<EntityReferenceResolver> items, final ResolvedReadContext readContext)
+	private boolean resolveMissingEntityDesignations(List<EntityReferenceResolver> items, final ResolvedReadContext readContext) throws UnknownEntity
 	{
 		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
 		
@@ -704,9 +706,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 						item.resolveEntity(readContext, utilities_);
 						return true;
 					}
+					catch (UnknownEntity e1)
+					{
+						throw e1;
+					}
 					catch (Exception e)
 					{
-						logger_.warn("Unexpected error resolving designation for Entity " + item, e);
+						logger_.error("Unexpected error resolving designation for Entity " + item, e);
 						return false;
 					}
 				}
@@ -728,6 +734,10 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 			catch (ExecutionException e)
 			{
+				if (e.getCause() instanceof UnknownEntity)
+				{
+					throw (UnknownEntity)e.getCause();
+				}
 				logger_.error("Unexpected error", e);
 				return false;
 			}
@@ -889,18 +899,19 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else if (TransitiveClosure.TRANSITIVE_CLOSURE == transitivity)
 		{
-			Iterator<CustomURIAndEntityName> it = thisLevelResults.iterator();
-			while (it.hasNext())
+			for (CustomURIAndEntityName thisLevelItem : thisLevelResults)
 			{
-				CustomURIAndEntityName nextItem = it.next();
-
-				if (resultHolder.contains(nextItem))
+		
+				if (resultHolder.contains(thisLevelItem))
 				{
 					// Just detected a cycle. No further processing for this item.
-					it.remove();
+					logger_.debug("Cycle detected - no further processing");
 					continue;
 				}
-				if (nextItem.getEntity().getUri().equals(entity.getUri()))
+				
+				resultHolder.add(thisLevelItem);
+				
+				if (thisLevelItem.getEntity().getUri().equals(entity.getUri()))
 				{
 					//Referenced itself??
 					//leave it, but don't recurse...
@@ -909,24 +920,21 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 
 				int sizeBefore = resultHolder.size();
-				processLevel(nextItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, resultHolder, readContext);
+				processLevel(thisLevelItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, resultHolder, readContext);
 				if (leafOnly && resultHolder.size() > sizeBefore)
 				{
-					// There were children from this node
-					it.remove();
+					// There were children from this node - remove it from the resultHolder since they want leaf only.
+					//It needs to be added before the recursion for cycle detection purposes.
+					if (!resultHolder.remove(thisLevelItem))
+					{
+						throw new RuntimeException("Design error in cycle detection!");
+					}
 				}
 			}
 		}
 		else
 		{
 			throw new UnspecifiedCts2Exception("Invalid Transitivity selection");
-		}
-		for (CustomURIAndEntityName item : thisLevelResults)
-		{
-			if (!resultHolder.add(item))
-			{
-				throw new RuntimeException("Design error in cycle detection!");
-			}
 		}
 	}
 
