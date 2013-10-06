@@ -7,6 +7,8 @@ import edu.mayo.cts2.framework.model.core.EntityReference;
 import edu.mayo.cts2.framework.model.core.ScopedEntityName;
 import edu.mayo.cts2.framework.model.core.URIAndEntityName;
 import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
+import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.ExceptionBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.Utilities;
 
 /**
@@ -143,7 +145,7 @@ public class EntityReferenceResolver
 	/**
 	 * Only resolves if it has not yet been resolved
 	 */
-	public void resolveEntity(ResolvedReadContext readContext, Utilities utilities)
+	public void resolveEntity(ResolvedReadContext readContext, Utilities utilities) throws UnknownEntity
 	{
 		if (!isResolved())
 		{
@@ -152,6 +154,10 @@ public class EntityReferenceResolver
 				throw new RuntimeException("Code system version wasn't passed in upon creation!");
 			}
 			EntityReferenceAndHref temp = utilities.resolveEntityReference(entity_, codeSystemVersion_, readContext);
+			if (temp == null)
+			{
+				throw ExceptionBuilder.buildUnknownEntity("Failed to resolve the entity '" + entity_ + "' in '" + codeSystemVersion_ + "'");
+			}
 			er_ = temp.getEntityReference();
 			entity_.setHref(temp.getHref());  // Reset the href to what we used to resolve it.
 		}
