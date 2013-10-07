@@ -160,6 +160,18 @@ public class EntityReferenceResolver
 			}
 			er_ = temp.getEntityReference();
 			entity_.setHref(temp.getHref());  // Reset the href to what we used to resolve it.
+			if (StringUtils.isBlank(entity_.getDesignation()) && er_.getKnownEntityDescriptionCount() > 0)
+			{
+				entity_.setDesignation(er_.getKnownEntityDescriptionAsReference().get(0).getDesignation());
+			}
+			if (StringUtils.isBlank(entity_.getName()))
+			{
+				entity_.setName(er_.getName().getName());
+			}
+			if (StringUtils.isBlank(entity_.getNamespace()))
+			{
+				entity_.setNamespace(er_.getName().getNamespace());
+			}
 		}
 	}
 
