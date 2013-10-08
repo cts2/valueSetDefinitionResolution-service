@@ -52,7 +52,7 @@ public abstract class ValueSetDefinitionSharedServiceBase implements BaseService
 	@Override
 	public List<DocumentedNamespaceReference> getKnownNamespaceList()
 	{
-		return new ArrayList<DocumentedNamespaceReference>();  // TODO QUESTION Kevin how to determine the namespace list
+		return new ArrayList<DocumentedNamespaceReference>();
 	}
 
 	@Override

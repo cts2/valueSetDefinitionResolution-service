@@ -45,6 +45,7 @@ import edu.mayo.cts2.framework.model.core.ValueSetDefinitionReference;
 import edu.mayo.cts2.framework.model.core.ValueSetReference;
 import edu.mayo.cts2.framework.model.core.types.AssociationDirection;
 import edu.mayo.cts2.framework.model.core.types.CompleteDirectory;
+import edu.mayo.cts2.framework.model.core.types.SetOperator;
 import edu.mayo.cts2.framework.model.directory.DirectoryResult;
 import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
 import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
@@ -94,7 +95,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	// TODO TEST cycle detection
 	// TODO TEST threading
 	// TODO TEST property query reference
-	// TODO QUESTION Kevin about all of these boilerplate things above that I'm skipping
 
 	/*
 	 * This is used to cache entire result objects, so that we can instantly answer a request for page 2 of a query,
@@ -127,6 +127,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<? extends MatchAlgorithmReference> getSupportedMatchAlgorithms()
 	{
+		//TODO need these?
 		// Arrays.asList(new MatchAlgorithmReference[] { StandardMatchAlgorithmReference.EXACT_MATCH.getMatchAlgorithmReference()})
 		return new HashSet<MatchAlgorithmReference>();
 	}
@@ -134,13 +135,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<? extends ComponentReference> getSupportedSearchReferences()
 	{
-		return new HashSet<ComponentReference>();  // Not yet supporting any of these - I think this used for the filtering on the final results?
+		return new HashSet<ComponentReference>();  // TODO need these? 
 	}
 
 	@Override
 	public Set<? extends ComponentReference> getSupportedSortReferences()
 	{
-		HashSet<ComponentReference> sorts = new HashSet<ComponentReference>();  // not supporting any sorts at the moment
+		HashSet<ComponentReference> sorts = new HashSet<ComponentReference>();
 		sorts.add(SupportedSorts.ALPHA_NUMERIC.asComponentReference());
 		sorts.add(SupportedSorts.ALPHABETIC.asComponentReference());
 		return sorts;
@@ -181,11 +182,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 */
 	@Override
 	public ResolvedValueSetResult<URIAndEntityName> resolveDefinition(ValueSetDefinitionReadId definitionId, Set<NameOrURI> codeSystemVersions, NameOrURI tag,
-			ResolvedValueSetResolutionEntityQuery query, SortCriteria sortCriteria, ResolvedReadContext readContext, Page page)
+			SortCriteria sortCriteria, ResolvedReadContext readContext, Page page)
 	{
-		logger_.debug("resolveDefinition {}, {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
+		logger_.debug("resolveDefinition {}, {}, {}, {}, {}, {}", definitionId, codeSystemVersions, tag, sortCriteria, readContext, page);
 
-		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, query, sortCriteria, readContext, page);
+		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, null, sortCriteria, readContext, page);
 		return new ResolvedValueSetResult<URIAndEntityName>(rr.getHeader(), rr.getItems(), rr.isAtEnd());
 	}
 
@@ -246,8 +247,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 			}
 		}
-
-		// TODO QUESTION more questions about query - directory oddities?
 		
 		//Lookup all of the codeSystemVersions
 		final HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions = new HashMap<>();
@@ -257,7 +256,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			{
 				try
 				{
-					//TODO - if they supply resolvedcodesystem versions, are we only allowed to use these?  Or do they just get preference?
 					CodeSystemVersionCatalogEntryAndHref csvce = utilities_.lookupCodeSystemVersion(nou, null, readContext);
 					resolvedCodeSystemVersions.put(csvce.getCodeSystemVersionCatalogEntry().getAbout(), csvce);
 				}
@@ -335,7 +333,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					ValueSetDefinitionReference vsdr = vsce.getCurrentDefinition();
 					if (vsdr == null)
 					{
-						logger_.warn("No Valueset Definition set to CURRENT for " + vsdr);
+						throw new UnspecifiedCts2Exception("No Valueset Definition set to CURRENT for " + vsce);
 					}
 					nestedValueSetDefinitionReadId = new ValueSetDefinitionReadId(vsdr.getValueSetDefinition().getUri());
 					nestedValueSetDefinitionReadId.setName(vsdr.getValueSetDefinition().getContent());
@@ -354,13 +352,24 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 				nestedValueSetDefinitionReadId.setValueSet(nestedValueSet);
 
-				HashSet<NameOrURI> nestedCodeSystemVersions = new HashSet<NameOrURI>();
 				if (completeValueSetRef.getReferenceCodeSystemVersion() != null)
 				{
-					NameOrURI nestedCodeSystemVersion = new NameOrURI();
-					nestedCodeSystemVersion.setName(completeValueSetRef.getReferenceCodeSystemVersion().getVersion().getContent());
-					nestedCodeSystemVersion.setUri(completeValueSetRef.getReferenceCodeSystemVersion().getVersion().getUri());
-					nestedCodeSystemVersions.add(nestedCodeSystemVersion);
+					for (CodeSystemVersionCatalogEntryAndHref csvce : resolvedCodeSystemVersions.values())
+					{
+						if (csvce.getCodeSystemVersionCatalogEntry().getVersionOf().getUri()
+								.equals(completeValueSetRef.getReferenceCodeSystemVersion().getCodeSystem().getUri()))
+						{
+							//Make sure the versions match
+							if (!csvce.getAsCodeSystemVersionReference().getVersion().getUri()
+									.equals(completeValueSetRef.getReferenceCodeSystemVersion().getVersion().getUri()))
+							{
+								throw new UnspecifiedCts2Exception("The Code System Version specified in a CompleteValueSet Reference '" 
+										+ "'" + completeValueSetRef.getReferenceCodeSystemVersion() + "' conflicts with the version specified in the codeSystemVersions "
+										+ "list '" + csvce.getAsCodeSystemVersionReference());
+							}
+						}
+					}
+					
 				}
 
 				Page subPage = new Page();
@@ -368,9 +377,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				ResolvedValueSetHeader rvsh = null;
 				while (true)
 				{
-					//pass in outer instead, but verify that inner isn't at odds with it.
-					//TODO QUESTION about how nestedCodeSystemVersions are handled with the specified codesystemVersions
-					ResolveReturn rr = resolveHelper(nestedValueSetDefinitionReadId, nestedCodeSystemVersions, tag, null, null, readContext, subPage);
+					ResolveReturn rr = resolveHelper(nestedValueSetDefinitionReadId, codeSystemVersions, tag, null, null, readContext, subPage);
 					if (rvsh == null)
 					{
 						rvsh = rr.getHeader();
@@ -544,13 +551,15 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		
 		List<EntityReferenceResolver> result2 = null;
-		if (query.getQuery6Choice() != null)
+		if (query.getQuery6Choice2() != null)
 		{
 			result2 = passesQuery(incoming, query.getQuery6Choice2().getQuery2(), query.getQuery6Choice2().getDirectoryUri2());
 		}
 		
 		if ((result1 != null || result2 != null) && query.getSetOperation() != null)
 		{
+			SetOperator so = query.getSetOperation();
+			
 			//TODO QUERYFILTER  process set logic
 		}
 		
@@ -573,7 +582,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else if (StringUtils.isNotBlank(directoryUriChoice))
 		{
-			//TODO QUERYFILTER  implement directory URI
+			//TODO QUERYFILTER  implement directory URI - always something that resolves to a entitydirectory
 			return incoming;
 		}
 		else
@@ -581,8 +590,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			return incoming;
 		}
 	}
-	
-	//TODO figure out how to use Kevin's generic code that already handles a lot of this....
+
 	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions)
 	{
 		//ArrayList<EntityReferenceResolver> result = new ArrayList<>();
@@ -641,7 +649,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			if (csv == null)
 			{
 				//still null - no match, pick a CodeSystemVersion that matches the requested tag, or failing that - CURRENT.
-				//TODO QUESTION allow fallback to arbitrary?
 				CodeSystemVersionCatalogEntrySummary csvces = utilities_.lookupCodeSystemVersionByTag(codeSystem, tag, "CURRENT", true, readContext);
 				if (csvces != null)
 				{

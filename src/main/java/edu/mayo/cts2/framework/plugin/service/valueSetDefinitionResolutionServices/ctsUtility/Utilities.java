@@ -474,8 +474,8 @@ public class Utilities
 			}
 			
 		}
-		//TODO QUESTION is arbitrary allowed?
-		//None of that worked... return our arbitrary result - 
+		logger_.warn("No Entity Reference was found that matched the supplied code system version parameters, and none was found with CURRENT.  " 
+				+ "Using an aribritary result instead - '" + er + "'");
 		return er;
 	}
 	
@@ -931,8 +931,10 @@ public class Utilities
 		{
 			return fallbackResult;
 		}
-		else if (allowFallBackToArbitrary)
+		else if (allowFallBackToArbitrary && arbitraryResult != null)
 		{
+			logger_.warn("No Code System Version was found that matched the supplied parameters, and none was found with CURRENT.  Using an aribritary result instead - '" 
+					+ arbitraryResult + "'");
 			return arbitraryResult;
 		}
 		return null;
