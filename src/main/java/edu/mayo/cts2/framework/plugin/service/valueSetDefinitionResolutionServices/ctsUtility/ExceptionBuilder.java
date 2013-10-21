@@ -7,6 +7,8 @@ import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSet;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
+import edu.mayo.cts2.framework.model.service.exception.UnsupportedMatchAlgorithm;
+import edu.mayo.cts2.framework.model.service.exception.UnsupportedNameOrURI;
 
 public class ExceptionBuilder
 {
@@ -34,6 +36,20 @@ public class ExceptionBuilder
 	public static UnknownValueSet buildUnknownValueSet(String message)
 	{
 		UnknownValueSet e = new UnknownValueSet();
+		addMessage(message, e);
+		return e;
+	}
+	
+	public static UnsupportedMatchAlgorithm buildUnsupportedMatchAlgorithm(String message)
+	{
+		UnsupportedMatchAlgorithm e = new UnsupportedMatchAlgorithm();
+		addMessage(message, e);
+		return e;
+	}
+	
+	public static UnsupportedNameOrURI buildUnsupportedNameOrURI(String message)
+	{
+		UnsupportedNameOrURI e = new UnsupportedNameOrURI();
 		addMessage(message, e);
 		return e;
 	}

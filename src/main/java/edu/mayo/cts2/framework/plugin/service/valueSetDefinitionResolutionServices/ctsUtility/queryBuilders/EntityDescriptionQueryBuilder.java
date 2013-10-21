@@ -9,7 +9,7 @@ import edu.mayo.cts2.framework.service.command.restriction.EntityDescriptionQuer
 import edu.mayo.cts2.framework.service.profile.entitydescription.EntitiesFromAssociationsQuery;
 import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescriptionQuery;
 
-public class EntityQueryBuilder
+public class EntityDescriptionQueryBuilder
 {
 	public static EntityDescriptionQuery build(final ResolvedReadContext readContext)
 	{

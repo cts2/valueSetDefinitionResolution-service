@@ -19,7 +19,7 @@ import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
 import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.types.ActiveOrAll;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.queryBuilders.EntityQueryBuilder;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.queryBuilders.EntityDescriptionQueryBuilder;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.EntityReferenceResolver;
 import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescriptionQuery;
 import edu.mayo.cts2.framework.service.profile.entitydescription.EntityDescriptionQueryService;
@@ -83,7 +83,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 			page.setMaxToReturn(readPageSize);
 			page.setPage(pageId++);
 
-			EntityDescriptionQuery query = EntityQueryBuilder.build(readContext_);
+			EntityDescriptionQuery query = EntityDescriptionQueryBuilder.build(readContext_);
 
 			NameOrURI codeSystem = new NameOrURI();
 			codeSystem.setName(codeSystemVersionName);

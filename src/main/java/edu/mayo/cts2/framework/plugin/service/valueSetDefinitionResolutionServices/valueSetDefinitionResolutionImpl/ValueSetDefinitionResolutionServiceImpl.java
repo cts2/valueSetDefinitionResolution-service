@@ -52,6 +52,7 @@ import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
 import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
+import edu.mayo.cts2.framework.model.service.core.NameOrURIList;
 import edu.mayo.cts2.framework.model.service.core.Query;
 import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
@@ -82,6 +83,9 @@ import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServic
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.SortCriterionComparator;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility.ValueSetDefinitionEntryComparator;
 import edu.mayo.cts2.framework.service.command.restriction.ResolvedValueSetResolutionEntityRestrictions;
+import edu.mayo.cts2.framework.service.command.restriction.TaggedCodeSystemRestriction;
+import edu.mayo.cts2.framework.service.meta.StandardMatchAlgorithmReference;
+import edu.mayo.cts2.framework.service.meta.StandardModelAttributeReference;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQuery;
 import edu.mayo.cts2.framework.service.profile.association.AssociationQueryService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ResolvedValueSetResolutionEntityQuery;
@@ -121,21 +125,26 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<PredicateReference> getKnownProperties()
 	{
-		return new HashSet<PredicateReference>();  // not sure what this is for - don't see any examples
+		return new HashSet<PredicateReference>();  //not sure what this is for - don't see any examples - I don't think it applies.
 	}
 
 	@Override
 	public Set<? extends MatchAlgorithmReference> getSupportedMatchAlgorithms()
 	{
-		//TODO need these?
-		// Arrays.asList(new MatchAlgorithmReference[] { StandardMatchAlgorithmReference.EXACT_MATCH.getMatchAlgorithmReference()})
-		return new HashSet<MatchAlgorithmReference>();
+		HashSet<MatchAlgorithmReference> result = new HashSet<MatchAlgorithmReference>();
+		result.add(StandardMatchAlgorithmReference.CONTAINS.getMatchAlgorithmReference());
+		result.add(StandardMatchAlgorithmReference.EXACT_MATCH.getMatchAlgorithmReference());
+		result.add(StandardMatchAlgorithmReference.STARTS_WITH.getMatchAlgorithmReference());
+		return result;
 	}
 
 	@Override
 	public Set<? extends ComponentReference> getSupportedSearchReferences()
 	{
-		return new HashSet<ComponentReference>();  // TODO need these? 
+		HashSet<ComponentReference> result = new HashSet<ComponentReference>();
+		result.add(StandardModelAttributeReference.DESIGNATION.getComponentReference());
+		result.add(StandardModelAttributeReference.RESOURCE_NAME.getComponentReference());
+		return result;
 	}
 
 	@Override
@@ -145,7 +154,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		sorts.add(SupportedSorts.ALPHA_NUMERIC.asComponentReference());
 		sorts.add(SupportedSorts.ALPHABETIC.asComponentReference());
 		return sorts;
-		
 	}
 
 	/**
@@ -494,7 +502,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		ResolvedValueSetHeader header = buildResolvedValueSetHeader(vsd.getDefinedValueSet().getContent(), vsd.getDefinedValueSet().getUri(), valueSetDefinitionName,
 				vsd.getAbout(), includesResolvedValueSets, resolvedUsingCodeSystems);
 		
-		result = processPostResolveQueryFilter(result, query);
+		result = processPostResolveQueryFilter(result, query, readContext);
 		
 		if (resolvedSortCriteria.size() > 0)
 		{
@@ -508,7 +516,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return new ResolveReturn(resultCache, page);
 	}
 	
-	private List<EntityReferenceResolver> processPostResolveQueryFilter(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query)
+	private List<EntityReferenceResolver> processPostResolveQueryFilter(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query, 
+			ResolvedReadContext readContext)
 	{
 		if (query == null)
 		{
@@ -518,85 +527,256 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		List<EntityReferenceResolver> filteredResult = new ArrayList<>();
 		boolean filterApplied = false;
 		
+		//handle the filter and restrictions first, as those are just talking about the incoming set.
 		if (query.getFilterComponent() != null && query.getFilterComponent().size() > 0)
 		{
-			filteredResult = passesFilters(incoming, query.getFilterComponent());
+			filteredResult = passesFilters((filterApplied ? filteredResult : incoming), query.getFilterComponent());
 			filterApplied = true;
 		}
 		
+		if (query.getResolvedValueSetResolutionEntityRestrictions() != null && 
+				((query.getResolvedValueSetResolutionEntityRestrictions().getEntities() != null 
+					&& query.getResolvedValueSetResolutionEntityRestrictions().getEntities().size() > 0)
+				|| query.getResolvedValueSetResolutionEntityRestrictions().getCodeSystemVersion() != null 
+				|| query.getResolvedValueSetResolutionEntityRestrictions().getTaggedCodeSystem() != null))
+		{
+			filteredResult = passesEntityRestrictions((filterApplied ? filteredResult : incoming), query.getResolvedValueSetResolutionEntityRestrictions(), 
+					readContext);
+			filterApplied = true;
+		}
+		
+		//Then handle the set logic with the other directory result
 		if (query.getQuery() != null)
 		{
-			filteredResult = passesQuery((filterApplied ? filteredResult : incoming), query.getQuery());
+			//TODO BUG - there is an API issue here - discussed with Kevin - it doesn't make any sense for Query to contain multiple directories.
+			//This implementation will treat the first directory for list operations to be the one resolved by this code (incoming) - and the second one for list operations
+			//will be the one in Query.getQuery6Choice().  The value in Query.getQuery6Choice2() will be completely ignored.
+			List<EntityReferenceResolver> right = resolveQuery(query.getQuery(), true);
+			List<EntityReferenceResolver> left = (filterApplied ? filteredResult : incoming);
+			
+			resolveSetLogic(left, right, query.getQuery().getSetOperation());
+			filteredResult = resolveQueryFilterLogic(left, query.getQuery().getFilterComponent(), query.getQuery().getMatchAlgorithm(), query.getQuery().getMatchValue());
 			filterApplied = true;
 		}
-		
-		if (query.getResolvedValueSetResolutionEntityRestrictions() != null && query.getResolvedValueSetResolutionEntityRestrictions().getEntities() != null 
-				&& query.getResolvedValueSetResolutionEntityRestrictions().getEntities().size() > 0)
-		{
-			filteredResult = passesEntityRestrictions((filterApplied ? filteredResult : incoming), query.getResolvedValueSetResolutionEntityRestrictions());
-			filterApplied = true;
-		}
-		
+
 		return filterApplied ? filteredResult : incoming;
 	}
 	
-	private List<EntityReferenceResolver> passesQuery(List<EntityReferenceResolver> incoming, Query query)
+	private List<EntityReferenceResolver> resolveQuery(Query query, boolean ignoreQueryChoice2)
 	{
-		List<EntityReferenceResolver> result = new ArrayList<>();
-		
-		List<EntityReferenceResolver> result1 = null;
-		if (query.getQuery6Choice() != null)
+		if (ignoreQueryChoice2)
 		{
-			result1 = passesQuery(incoming, query.getQuery6Choice().getQuery1(), query.getQuery6Choice().getDirectoryUri1());
+			if (query.getQuery6Choice() != null)
+			{
+				return resolveQueryChoice(query.getQuery6Choice().getQuery1(), query.getQuery6Choice().getDirectoryUri1());
+				//Don't process the filters here, as they have to be done after the set logic.
+			}
+			else
+			{
+				throw new UnspecifiedCts2Exception("Query6Choice should be populated if the Query is provided");
+			}
 		}
-		
-		List<EntityReferenceResolver> result2 = null;
-		if (query.getQuery6Choice2() != null)
+		else
 		{
-			result2 = passesQuery(incoming, query.getQuery6Choice2().getQuery2(), query.getQuery6Choice2().getDirectoryUri2());
-		}
-		
-		if ((result1 != null || result2 != null) && query.getSetOperation() != null)
-		{
-			SetOperator so = query.getSetOperation();
+			List<EntityReferenceResolver> left = new ArrayList<>();
+			List<EntityReferenceResolver> right = new ArrayList<>();
 			
-			//TODO QUERYFILTER  process set logic
+			if (query.getQuery6Choice() != null)
+			{
+				left = resolveQueryChoice(query.getQuery6Choice().getQuery1(), query.getQuery6Choice().getDirectoryUri1());
+			}
+			if (query.getQuery6Choice2() != null)
+			{
+				right = resolveQueryChoice(query.getQuery6Choice2().getQuery2(), query.getQuery6Choice2().getDirectoryUri2());
+			}
+			
+			List<EntityReferenceResolver> result = resolveSetLogic(left, right, query.getSetOperation());
+			return resolveQueryFilterLogic(result, query.getFilterComponent(), query.getMatchAlgorithm(), query.getMatchValue());
 		}
-		
-		if (query.getFilterComponent() != null && query.getMatchAlgorithm() != null && query.getMatchValue() != null)
+	}
+	
+	private List<EntityReferenceResolver> resolveQueryFilterLogic(List<EntityReferenceResolver> incoming, NameOrURIList filterComponent, 
+			NameOrURI matchAlgorithm, String matchValue)
+	{
+		if (filterComponent!= null && matchAlgorithm != null && matchValue != null)
 		{
-			ResolvedFilter rf = new ResolvedFilter();
-			//TODO QUERYFILTER build ResolvedFilter
-			HashSet<ResolvedFilter> temp = new HashSet<>();
-			temp.add(rf);
-			result = passesFilters(result, temp);
+			MatchAlgorithmReference matchAlgorithmRef = null;
+			for (MatchAlgorithmReference mar : getSupportedMatchAlgorithms())
+			{
+				if (matchAlgorithm.getName().equals(mar.getContent()))
+				{
+					matchAlgorithmRef = mar;
+					break;
+				}
+			}
+			if (matchAlgorithmRef == null)
+			{
+				throw ExceptionBuilder.buildUnsupportedMatchAlgorithm(matchAlgorithm.getName());
+			}
+			
+			HashSet<ResolvedFilter> resolvedFilters = new HashSet<>();
+			
+			Set<? extends ComponentReference> cr = getSupportedSearchReferences();
+			
+			for (NameOrURI nou : filterComponent.getEntryAsReference())
+			{
+				boolean matched = false;
+				for (ComponentReference crItem : cr)
+				{
+					if (crItem.getAttributeReference().equals(nou.getName()) || crItem.getAttributeReference().equals(nou.getUri()))
+					{
+						ResolvedFilter rf = new ResolvedFilter();
+						rf.setMatchValue(matchValue);
+						rf.setMatchAlgorithmReference(matchAlgorithmRef);
+						rf.setComponentReference(crItem);
+						resolvedFilters.add(rf);
+						matched = true;
+						break;
+					}
+				}
+				if (!matched)
+				{
+					ExceptionBuilder.buildUnsupportedNameOrURI("The Component Reference '" + nou + "' is not supported for filtering");
+				}
+			}
+			return passesFilters(incoming, resolvedFilters);
 		}
 		return incoming;
 	}
 	
-	private List<EntityReferenceResolver> passesQuery(List<EntityReferenceResolver> incoming, Query queryChoice, String directoryUriChoice)
+	private List<EntityReferenceResolver> resolveQueryChoice(Query query, String directoryURI)
 	{
-		if (queryChoice != null)
+		if (query != null)
 		{
-			return passesQuery(incoming, queryChoice);
+			return resolveQuery(query, false);
 		}
-		else if (StringUtils.isNotBlank(directoryUriChoice))
+		else if (StringUtils.isNotBlank(directoryURI))
 		{
-			//TODO QUERYFILTER  implement directory URI - always something that resolves to a entitydirectory
-			return incoming;
+			ArrayList<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>();
+			ArrayList<EntityReferenceAndHref> items = utilities_.resolveEntityDirectory(directoryURI);
+			
+			for (EntityReferenceAndHref er : items)
+			{
+				EntityDirectoryEntry ede =  new EntityDirectoryEntry();
+				ede.setAbout(er.getEntityReference().getAbout());
+				ede.setHref(er.getHref());
+				ede.setKnownEntityDescription(er.getEntityReference().getKnownEntityDescriptionAsReference());
+				ede.setName(er.getEntityReference().getName());
+				
+				result.add(new EntityReferenceResolver(ede));
+			}
+			return result;
 		}
-		else
-		{
-			return incoming;
-		}
+		return new ArrayList<EntityReferenceResolver>();
+	}
+	
+	private List<EntityReferenceResolver> resolveSetLogic(List<EntityReferenceResolver> left, List<EntityReferenceResolver> right, SetOperator so)
+	{
+		SetUtilities<EntityReferenceResolver> su = new SetUtilities<>();
+		su.handleSet(so, left, right);
+		return left;
 	}
 
-	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions)
+	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions,
+			ResolvedReadContext readContext)
 	{
-		//ArrayList<EntityReferenceResolver> result = new ArrayList<>();
+		List<EntityReferenceResolver> pendingResults = new ArrayList<EntityReferenceResolver>();
 		
-		//TODO QUERYFILTER  implement entityRestrictions
-		return incoming;
+		if (restrictions.getEntities() != null && restrictions.getEntities().size() > 0)
+		{
+			HashSet<String> allowedEntities = new HashSet<String>();
+			for (EntityNameOrURI entity : restrictions.getEntities())
+			{
+				if (StringUtils.isNotEmpty(entity.getUri()))
+				{
+					allowedEntities.add(entity.getUri());
+				}
+				if (entity.getEntityName() != null)
+				{
+					allowedEntities.add(entity.getEntityName().getNamespace() + ":" + entity.getEntityName().getName());
+				}
+			}
+			
+			
+			for (EntityReferenceResolver ere : incoming)
+			{
+				if (allowedEntities.contains(ere.getEntityReference().getAbout()) || 
+						allowedEntities.contains(ere.getEntityReference().getName().getNamespace() + ":" + ere.getEntityReference().getName().getName()))
+				{
+					pendingResults.add(ere);
+				}
+			}
+		}
+		else 
+		{
+			pendingResults = incoming;
+		}
+		
+		if (restrictions.getCodeSystemVersion() != null)
+		{
+			removeEntitiesThatDontMatchCodeSystemVersion(pendingResults, restrictions.getCodeSystemVersion(), readContext);
+		}
+		
+		if (restrictions.getTaggedCodeSystem() != null)
+		{
+			TaggedCodeSystemRestriction tcsr = restrictions.getTaggedCodeSystem();
+			
+			CodeSystemReference csr = new CodeSystemReference();
+			csr.setContent(tcsr.getCodeSystem().getName());
+			csr.setUri(tcsr.getCodeSystem().getUri());
+			
+			NameOrURI tag = new NameOrURI();
+			tag.setName(tcsr.getTag());
+			
+			CodeSystemVersionCatalogEntrySummary csvces = utilities_.lookupCodeSystemVersionByTag(csr, tag, null, false, readContext);
+			
+			if (csvces == null)
+			{
+				throw ExceptionBuilder.buildUnknownCodeSystemVersion("The TaggedCodeSystemRestriction contains an unresolvable code system version");
+			}
+			NameOrURI codeSystemVersion = new NameOrURI();
+			codeSystemVersion.setName(csvces.getCodeSystemVersionName());
+			codeSystemVersion.setUri(csvces.getAbout());
+			
+			removeEntitiesThatDontMatchCodeSystemVersion(pendingResults, codeSystemVersion, readContext);
+		}
+		return pendingResults;
+	}
+	
+	private void removeEntitiesThatDontMatchCodeSystemVersion(List<EntityReferenceResolver> pendingResults, NameOrURI codeSystemVersion, 
+			ResolvedReadContext readContext)
+	{
+		//Require that each entity I have is resolvable in the requested code system version...
+		Iterator<EntityReferenceResolver> it = pendingResults.iterator();
+		while (it.hasNext())
+		{
+			//Resolve this entity again (the resolution we have may not contain all describing code system versions)
+			EntityReferenceResolver ere = it.next();
+			EntityReferenceAndHref er =  utilities_.resolveEntityReference(ere.getEntity(), readContext);
+			if (er == null)
+			{
+				it.remove();
+				continue;
+			}
+			else
+			{
+				boolean ok = false;
+				for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescription())
+				{
+					if (codeSystemVersion.getName().equals(d.getDescribingCodeSystemVersion().getVersion().getContent())
+							|| codeSystemVersion.getUri().equals(d.getDescribingCodeSystemVersion().getVersion().getUri()))
+					{
+						ok = true;
+						break;
+					}
+				}
+				if (!ok)
+				{
+					//None of the resolved returned code system versions matched the requested... toss it.
+					it.remove();
+				}
+			}
+		}
 	}
 	
 	private List<EntityReferenceResolver> passesFilters(List<EntityReferenceResolver> incoming, Set<ResolvedFilter> filters)
@@ -624,8 +804,53 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	
 	private boolean passesFilter(EntityReferenceResolver ere, ResolvedFilter filter)
 	{
-		//TODO QUERYFILTER  implement filter
-		return true;
+		ArrayList<String> matchTargets = new ArrayList<String>();
+		if (filter.getComponentReference().equals(StandardModelAttributeReference.DESIGNATION.getComponentReference()))
+		{
+			matchTargets.add(ere.getEntity().getDesignation());
+			for (DescriptionInCodeSystem d : ere.getEntityReference().getKnownEntityDescriptionAsReference())
+			{
+				matchTargets.add(d.getDesignation());
+			}
+		}
+		else if (filter.getComponentReference().equals(StandardModelAttributeReference.RESOURCE_NAME.getComponentReference()))
+		{
+			matchTargets.add(ere.getEntity().getName());
+		}
+		else
+		{
+			throw new UnspecifiedCts2Exception("Unexpected case while evaluating filters");
+		}
+		
+		for (String s : matchTargets)
+		{
+			if (filter.getMatchAlgorithmReference().equals(StandardMatchAlgorithmReference.EXACT_MATCH.getMatchAlgorithmReference()))
+			{
+				if (s.equals(filter.getMatchValue()))
+				{
+					return true;
+				}
+			}
+			else if (filter.getMatchAlgorithmReference().equals(StandardMatchAlgorithmReference.CONTAINS.getMatchAlgorithmReference()))
+			{
+				if (s.contains(filter.getMatchValue()))
+				{
+					return true;
+				}
+			}
+			else if (filter.getMatchAlgorithmReference().equals(StandardMatchAlgorithmReference.STARTS_WITH.getMatchAlgorithmReference()))
+			{
+				if (s.startsWith(filter.getMatchValue()))
+				{
+					return true;
+				}
+			}
+			else
+			{
+				throw new UnspecifiedCts2Exception("Unexpected case while evaluating filters");
+			}
+		}
+		return false;
 	}
 	
 	private CodeSystemVersionCatalogEntryAndHref pickBestCodeSystemVersion(CodeSystemVersionReference codeSystemVersion, CodeSystemReference codeSystem, 

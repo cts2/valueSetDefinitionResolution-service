@@ -40,6 +40,8 @@ import edu.mayo.cts2.framework.model.entity.Designation;
 import edu.mayo.cts2.framework.model.entity.EntityDescription;
 import edu.mayo.cts2.framework.model.entity.EntityDescriptionBase;
 import edu.mayo.cts2.framework.model.entity.EntityDescriptionMsg;
+import edu.mayo.cts2.framework.model.entity.EntityDirectory;
+import edu.mayo.cts2.framework.model.entity.EntityDirectoryEntry;
 import edu.mayo.cts2.framework.model.entity.EntityReferenceMsg;
 import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 import edu.mayo.cts2.framework.model.extension.LocalIdValueSetDefinition;
@@ -444,7 +446,7 @@ public class Utilities
 			{
 				if (resolvedCodeSystemVersions.containsKey(d.getDescribingCodeSystemVersion().getVersion().getUri()))
 				{
-					//This entity referencs aligns with one of the requested resolvedCodeSystemVersions - use it.
+					//This entity reference aligns with one of the requested resolvedCodeSystemVersions - use it.
 					return er;
 				}
 			}
@@ -694,6 +696,43 @@ public class Utilities
 			return new EntityReferenceAndHref(er, entityHref);
 		}
 		return null;
+	}
+	
+	public ArrayList<EntityReferenceAndHref> resolveEntityDirectory(String entityDirectoryURI)
+	{
+		//EntityDescriptionQueryService edqs = getLocalEntityDescriptionQueryService();
+		ArrayList<EntityReferenceAndHref> result = new ArrayList<>();
+//		if (false)//edqs != null)
+//		{
+//			//TODO ENHANCEMENT - in order to make this work, we would need to parse out the URL that is passed in, and reconstruct it into a 
+//			//local service call.  At the moment, nothing of the sort exists.
+//		}
+//		else 
+//		{
+			String url = entityDirectoryURI;
+			while (StringUtils.isNotBlank(url))
+			{
+				EntityDirectory ed = getRestClient().getCts2Resource(url, EntityDirectory.class);
+				for (EntityDirectoryEntry ede : ed.getEntryAsReference())
+				{
+					EntityReference er = new EntityReference();
+					er.setAbout(ede.getAbout());
+					er.setKnownEntityDescription(ede.getKnownEntityDescriptionAsReference());
+					er.setName(ede.getName());
+					result.add(new EntityReferenceAndHref(er, ede.getHref()));
+				}
+				
+				if (ed.getComplete() == CompleteDirectory.COMPLETE)
+				{
+					break;
+				}
+				else
+				{
+					url = ed.getNext();
+				}
+			}
+//		}
+		return result;
 	}
 	
 	public CodeSystemVersionCatalogEntryAndHref lookupCodeSystemVersion(NameOrURI codeSystemVersion, String suppliedHref, ResolvedReadContext readContext)
