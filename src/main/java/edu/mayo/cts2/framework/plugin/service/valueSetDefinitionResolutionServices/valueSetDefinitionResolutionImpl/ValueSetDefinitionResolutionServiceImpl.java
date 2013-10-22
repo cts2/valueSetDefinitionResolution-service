@@ -275,7 +275,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 
-		List<EntityReferenceResolver> result = new ArrayList<>();
+		HashSet<EntityReferenceResolver> pendingResult = new HashSet<>();
 		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<>();
 		HashSet<CodeSystemVersionReference> resolvedUsingCodeSystems = new HashSet<>();
 
@@ -478,7 +478,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		for (int i = 0; i < vsd.getEntryAsReference().size(); i++)
 		{
-			new SetUtilities<EntityReferenceResolver>().handleSet(vsd.getEntry(i).getOperator(), result, tempResults.get(i));
+			new SetUtilities<EntityReferenceResolver>().handleSet(vsd.getEntry(i).getOperator(), pendingResult, tempResults.get(i));
 		}
 		
 		if (Timeout.isTimeLimitExceeded())
@@ -486,12 +486,12 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			throw new RuntimeException("Notified of timeout");
 		}
 
-		if (!resolveMissingEntityDesignations(result, readContext))
+		if (!resolveMissingEntityDesignations(pendingResult, readContext))
 		{
 			throw ExceptionBuilder.buildUnknownEntity("Failed to resolve all Entities - see log for details");
 		}
 		
-		for (EntityReferenceResolver ere : result)
+		for (EntityReferenceResolver ere : pendingResult)
 		{
 			for (DescriptionInCodeSystem description : ere.getEntityReference().getKnownEntityDescriptionAsReference())
 			{
@@ -502,8 +502,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		ResolvedValueSetHeader header = buildResolvedValueSetHeader(vsd.getDefinedValueSet().getContent(), vsd.getDefinedValueSet().getUri(), valueSetDefinitionName,
 				vsd.getAbout(), includesResolvedValueSets, resolvedUsingCodeSystems);
 		
-		result = processPostResolveQueryFilter(result, query, readContext);
+		//Change the set to a list so we can sort
+		List<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>(pendingResult);
 		
+		result = processPostResolveQueryFilter(result, query, readContext);
+
 		if (resolvedSortCriteria.size() > 0)
 		{
 			Collections.sort(result, new EntityReferenceResolverComparator(resolvedSortCriteria));
@@ -693,15 +696,24 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				}
 				if (entity.getEntityName() != null)
 				{
-					allowedEntities.add(entity.getEntityName().getNamespace() + ":" + entity.getEntityName().getName());
+					//User may provide a namespace, or they may not.
+					if (StringUtils.isNotEmpty(entity.getEntityName().getNamespace()))
+					{
+						allowedEntities.add(entity.getEntityName().getNamespace() + ":" + entity.getEntityName().getName());
+					}
+					else
+					{
+						allowedEntities.add(entity.getEntityName().getName());
+					}
 				}
 			}
 			
 			
 			for (EntityReferenceResolver ere : incoming)
 			{
-				if (allowedEntities.contains(ere.getEntityReference().getAbout()) || 
-						allowedEntities.contains(ere.getEntityReference().getName().getNamespace() + ":" + ere.getEntityReference().getName().getName()))
+				if (allowedEntities.contains(ere.getEntityReference().getAbout()) 
+						|| allowedEntities.contains(ere.getEntityReference().getName().getNamespace() + ":" + ere.getEntityReference().getName().getName())
+						|| allowedEntities.contains(ere.getEntityReference().getName().getName()))
 				{
 					pendingResults.add(ere);
 				}
@@ -921,7 +933,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * Returns true if all were resolved without error, false otherwise.
 	 * @return
 	 */
-	private boolean resolveMissingEntityDesignations(List<EntityReferenceResolver> items, final ResolvedReadContext readContext) throws UnknownEntity
+	private boolean resolveMissingEntityDesignations(Collection<EntityReferenceResolver> items, final ResolvedReadContext readContext) throws UnknownEntity
 	{
 		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
 		
