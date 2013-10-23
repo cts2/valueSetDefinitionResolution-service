@@ -110,17 +110,22 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * A thread pool used in the resolution of various entities - as those operations are usually handled by other services that
 	 * may be a slow network hop away.
 	 */
-	private ExecutorService threadPool_ = new ThreadPoolExecutor(2, 15, 5, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(), new ThreadFactory()
+	private ThreadPoolExecutor threadPool_ = new ThreadPoolExecutor(15, 15, 5, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(), new ThreadFactory()
 	{
 		@Override
 		public Thread newThread(Runnable r)
 		{
 			Thread thread = new Thread(r);
 			thread.setDaemon(true);
-			thread.setName("ValueSetDefinition-ResolveThread");
+			thread.setName("ValueSetDefinition-ResolveThread-" + thread.getId());
 			return thread;
 		}
 	});
+	
+	public ValueSetDefinitionResolutionServiceImpl()
+	{
+		threadPool_.allowCoreThreadTimeOut(true);
+	}
 
 	@Override
 	public Set<PredicateReference> getKnownProperties()
