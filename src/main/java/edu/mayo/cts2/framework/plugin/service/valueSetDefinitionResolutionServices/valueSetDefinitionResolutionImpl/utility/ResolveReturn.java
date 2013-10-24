@@ -24,7 +24,7 @@ public class ResolveReturn
 
 	public ArrayList<URIAndEntityName> getItems()
 	{
-		ArrayList<URIAndEntityName> result = new ArrayList<>(page_ == null ? resultCache_.getItems().size() : page_.getMaxToReturn());
+		ArrayList<URIAndEntityName> result = new ArrayList<URIAndEntityName>(page_ == null ? resultCache_.getItems().size() : page_.getMaxToReturn());
 		int start = (page_ == null ? 0 : page_.getStart());
 		int end = (page_ == null ? resultCache_.getItems().size() : (page_.getEnd() > resultCache_.getItems().size() ? resultCache_.getItems().size() : page_.getEnd()));
 		for (int i = start; i < end; i++)
@@ -36,7 +36,7 @@ public class ResolveReturn
 
 	public ArrayList<EntityDirectoryEntry> getEntityDirectoryEntry()
 	{
-		ArrayList<EntityDirectoryEntry> result = new ArrayList<>(page_ == null ? resultCache_.getItems().size() : page_.getMaxToReturn());
+		ArrayList<EntityDirectoryEntry> result = new ArrayList<EntityDirectoryEntry>(page_ == null ? resultCache_.getItems().size() : page_.getMaxToReturn());
 		int start = (page_ == null ? 0 : page_.getStart());
 		int end = (page_ == null ? resultCache_.getItems().size() : (page_.getEnd() > resultCache_.getItems().size() ? resultCache_.getItems().size() : page_.getEnd()));
 		for (int i = start; i < end; i++)

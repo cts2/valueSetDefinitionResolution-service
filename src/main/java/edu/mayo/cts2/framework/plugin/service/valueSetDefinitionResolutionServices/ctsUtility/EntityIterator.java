@@ -37,7 +37,7 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 {
 	private Utilities utilities_;
 	private final int readPageSize = 500;
-	private ArrayList<EntityReferenceResolver> buffer_ = new ArrayList<>(500);
+	private ArrayList<EntityReferenceResolver> buffer_ = new ArrayList<EntityReferenceResolver>(500);
 	private int pageId = 0;
 	private boolean finished = false;
 	private RuntimeException e;

@@ -235,7 +235,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			return new ResolveReturn(rc, page);
 		}
 		
-		ArrayList<SupportedSorts> resolvedSortCriteria = new ArrayList<>();
+		ArrayList<SupportedSorts> resolvedSortCriteria = new ArrayList<SupportedSorts>();
 
 		if (sortCriteria != null)
 		{
@@ -261,7 +261,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		
 		//Lookup all of the codeSystemVersions
-		final HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions = new HashMap<>();
+		final HashMap<String, CodeSystemVersionCatalogEntryAndHref> resolvedCodeSystemVersions = new HashMap<String, CodeSystemVersionCatalogEntryAndHref>();
 		if (codeSystemVersions != null)
 		{
 			for (NameOrURI nou : codeSystemVersions)
@@ -279,15 +279,15 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 
-		HashSet<EntityReferenceResolver> pendingResult = new HashSet<>();
-		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<>();
-		HashSet<CodeSystemVersionReference> resolvedUsingCodeSystems = new HashSet<>();
+		HashSet<EntityReferenceResolver> pendingResult = new HashSet<EntityReferenceResolver>();
+		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<ResolvedValueSetHeader>();
+		HashSet<CodeSystemVersionReference> resolvedUsingCodeSystems = new HashSet<CodeSystemVersionReference>();
 
 		LocalIdValueSetDefinition localIdValueSetDefinition = utilities_.lookupValueSetDefinition(definitionId, readContext);
 		ValueSetDefinition vsd = localIdValueSetDefinition.getResource();
 		String valueSetDefinitionName = localIdValueSetDefinition.getLocalID();
 
-		ArrayList<ArrayList<EntityReferenceResolver>> tempResults = new ArrayList<>();
+		ArrayList<ArrayList<EntityReferenceResolver>> tempResults = new ArrayList<ArrayList<EntityReferenceResolver>>();
 
 		Collections.sort(vsd.getEntryAsReference(), new ValueSetDefinitionEntryComparator());
 
@@ -298,7 +298,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				throw new RuntimeException("Notified of timeout");
 			}
 			Object entry = valueSetDefinitionEntry.getChoiceValue();
-			ArrayList<EntityReferenceResolver> itemList = new ArrayList<>();
+			ArrayList<EntityReferenceResolver> itemList = new ArrayList<EntityReferenceResolver>();
 
 			if (entry instanceof AssociatedEntitiesReference)
 			{
@@ -426,7 +426,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				SpecificEntityList sel = (SpecificEntityList) entry;
 
 				// Resolving these entities could be slow - so kick them into the thread pool.
-				ArrayList<Callable<EntityReferenceAndHref>> tasks = new ArrayList<>(sel.getReferencedEntityAsReference().size());
+				ArrayList<Callable<EntityReferenceAndHref>> tasks = new ArrayList<Callable<EntityReferenceAndHref>>(sel.getReferencedEntityAsReference().size());
 				{
 					for (final URIAndEntityName entity : sel.getReferencedEntityAsReference())
 					{
@@ -531,7 +531,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			return incoming;
 		}
 		
-		List<EntityReferenceResolver> filteredResult = new ArrayList<>();
+		List<EntityReferenceResolver> filteredResult = new ArrayList<EntityReferenceResolver>();
 		boolean filterApplied = false;
 		
 		//handle the filter and restrictions first, as those are just talking about the incoming set.
@@ -585,8 +585,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else
 		{
-			List<EntityReferenceResolver> left = new ArrayList<>();
-			List<EntityReferenceResolver> right = new ArrayList<>();
+			List<EntityReferenceResolver> left = new ArrayList<EntityReferenceResolver>();
+			List<EntityReferenceResolver> right = new ArrayList<EntityReferenceResolver>();
 			
 			if (query.getQuery6Choice() != null)
 			{
@@ -621,7 +621,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				throw ExceptionBuilder.buildUnsupportedMatchAlgorithm(matchAlgorithm.getName());
 			}
 			
-			HashSet<ResolvedFilter> resolvedFilters = new HashSet<>();
+			HashSet<ResolvedFilter> resolvedFilters = new HashSet<ResolvedFilter>();
 			
 			Set<? extends ComponentReference> cr = getSupportedSearchReferences();
 			
@@ -679,7 +679,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	
 	private List<EntityReferenceResolver> resolveSetLogic(List<EntityReferenceResolver> left, List<EntityReferenceResolver> right, SetOperator so)
 	{
-		SetUtilities<EntityReferenceResolver> su = new SetUtilities<>();
+		SetUtilities<EntityReferenceResolver> su = new SetUtilities<EntityReferenceResolver>();
 		su.handleSet(so, left, right);
 		return left;
 	}
@@ -797,7 +797,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	
 	private List<EntityReferenceResolver> passesFilters(List<EntityReferenceResolver> incoming, Set<ResolvedFilter> filters)
 	{
-		ArrayList<EntityReferenceResolver> result = new ArrayList<>();
+		ArrayList<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>();
 		
 		for (EntityReferenceResolver ere : incoming)
 		{
@@ -939,7 +939,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 */
 	private boolean resolveMissingEntityDesignations(Collection<EntityReferenceResolver> items, final ResolvedReadContext readContext) throws UnknownEntity
 	{
-		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
+		ArrayList<Callable<Boolean>> tasks = new ArrayList<Callable<Boolean>>();
 		
 		// Throw these entity resolution jobs at the thread pool, as they take a relatively long time against remote services.
 		for (final EntityReferenceResolver item : items)
@@ -1028,7 +1028,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		processLevel(aer.getReferencedEntity(), aer.getDirection(), associationVersionCodeSystemInfo, aer.getTransitivity(), aer.getPredicate().getUri(),
 				LeafOrAll.LEAF_ONLY == aer.getLeafOnly(), resultHolder, readContext);
 
-		ArrayList<EntityReferenceResolver> results = new ArrayList<>(resultHolder.size());
+		ArrayList<EntityReferenceResolver> results = new ArrayList<EntityReferenceResolver>(resultHolder.size());
 		
 
 		for (CustomURIAndEntityName entity : resultHolder)
@@ -1043,7 +1043,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, HashSet<CustomURIAndEntityName> resultHolder, ResolvedReadContext readContext)
 	{
 		AssociationQueryService aqs = utilities_.getLocalAssociationQueryService();
-		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<>();
+		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<CustomURIAndEntityName>();
 
 		boolean localServiceFail = false;
 		
@@ -1196,7 +1196,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion, boolean sourceToTarget)
 	{
 		AssociationDirectory result = Cts2RestClient.instance().getCts2Resource(href, AssociationDirectory.class);
-		ArrayList<CustomURIAndEntityName> resultHolder = new ArrayList<>();
+		ArrayList<CustomURIAndEntityName> resultHolder = new ArrayList<CustomURIAndEntityName>();
 
 		for (AssociationDirectoryEntry ade : result.getEntryAsReference())
 		{

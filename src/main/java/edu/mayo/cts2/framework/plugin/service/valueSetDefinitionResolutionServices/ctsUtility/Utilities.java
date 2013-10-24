@@ -681,7 +681,7 @@ public class Utilities
 			er.setAbout(resolvedEntity.getAbout());
 			er.setName(resolvedEntity.getEntityID());
 			
-			ArrayList<DescriptionInCodeSystem> descriptions = new ArrayList<>(resolvedEntity.getDesignation().length);
+			ArrayList<DescriptionInCodeSystem> descriptions = new ArrayList<DescriptionInCodeSystem>(resolvedEntity.getDesignation().length);
 			for (Designation description : resolvedEntity.getDesignation())
 			{
 				DescriptionInCodeSystem d = new DescriptionInCodeSystem();
@@ -701,7 +701,7 @@ public class Utilities
 	public ArrayList<EntityReferenceAndHref> resolveEntityDirectory(String entityDirectoryURI)
 	{
 		//EntityDescriptionQueryService edqs = getLocalEntityDescriptionQueryService();
-		ArrayList<EntityReferenceAndHref> result = new ArrayList<>();
+		ArrayList<EntityReferenceAndHref> result = new ArrayList<EntityReferenceAndHref>();
 //		if (false)//edqs != null)
 //		{
 //			//TODO ENHANCEMENT - in order to make this work, we would need to parse out the URL that is passed in, and reconstruct it into a 
