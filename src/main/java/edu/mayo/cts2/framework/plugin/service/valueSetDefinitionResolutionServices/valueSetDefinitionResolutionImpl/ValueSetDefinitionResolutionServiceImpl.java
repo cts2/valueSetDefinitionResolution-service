@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -1046,8 +1045,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		AssociationQueryService aqs = utilities_.getLocalAssociationQueryService();
 		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<>();
 
-		// CodeSystemVersionReference entityCodeSystemVersion = getCodeSystemVersionForEntity(entity, readContext);
-
 		boolean localServiceFail = false;
 		
 		boolean sourceToTarget;
@@ -1079,6 +1076,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				codeSystemVersion.setUri(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout());
 				query.getRestrictions().setCodeSystemVersion(codeSystemVersion);
 	
+				//Note - this is broken in the exist implementation...
 				EntityNameOrURI predicate = new EntityNameOrURI();
 				predicate.setUri(predicateURI);
 				query.getRestrictions().setPredicate(predicate);
@@ -1103,15 +1101,23 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					DirectoryResult<AssociationDirectoryEntry> temp = aqs.getResourceSummaries(query, null, page);
 					for (AssociationDirectoryEntry ade : temp.getEntries())
 					{
-						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+						//TODO BUG predicate filtering is broken on exist - post-filter here in the meantime.  https://github.com/cts2/exist-service/issues/16
+						if (ade.getPredicate().getUri().equals(predicateURI))
 						{
-							thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
+							if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+							{
+								thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
+							}
+							else
+							{
+								logger_.warn("We crossed code systems during an association query (process level).  Expected '" 
+										+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
+										+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
+							}
 						}
-						else
+						else 
 						{
-							logger_.warn("We crossed code systems during an association query (gather).  Expected '" 
-									+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
-									+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
+							logger_.info("Predicate URIs don't match.  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
 						}
 					}
 					if (temp.isAtEnd())
@@ -1138,7 +1144,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(), entity.getName(), sourceToTarget, 
 					associationCodeSystemVersion.getHref(), readContext);
 
-			// TODO BUG switch over to predicate filtering directly, when fixed - https://github.com/cts2/cts2-framework/issues/28
 			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion, sourceToTarget));
 		}
 
@@ -1195,19 +1200,24 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		for (AssociationDirectoryEntry ade : result.getEntryAsReference())
 		{
-			if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+			// TODO BUG switch over to predicate filtering directly, when fixed - https://github.com/cts2/cts2-framework/issues/28 
+			//and  https://github.com/cts2/exist-service/issues/16
+			if (ade.getPredicate().getUri().equals(predicateURI))
 			{
-				if (ade.getPredicate().getUri().equals(predicateURI))
+				if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
 				{
 					resultHolder.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
 				}
-				logger_.warn("Predicate URIs don't match?  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
+				else
+				{
+					logger_.warn("We crossed code systems during an association query (gather).  Expected '" 
+							+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
+							+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
+				}
 			}
 			else
 			{
-				logger_.warn("We crossed code systems during an association query (gather).  Expected '" 
-						+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
-						+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
+				logger_.info("Predicate URIs don't match.  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
 			}
 		}
 		if (result.getComplete() == CompleteDirectory.PARTIAL && StringUtils.isNotBlank(result.getNext()))

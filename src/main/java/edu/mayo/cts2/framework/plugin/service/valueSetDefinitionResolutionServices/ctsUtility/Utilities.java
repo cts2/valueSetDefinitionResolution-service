@@ -476,7 +476,7 @@ public class Utilities
 			}
 			
 		}
-		logger_.warn("No Entity Reference was found that matched the supplied code system version parameters, and none was found with CURRENT.  " 
+		logger_.info("No Entity Reference was found that matched the supplied code system version parameters, and none was found with CURRENT.  " 
 				+ "Using an aribritary result instead - '" + er + "'");
 		return er;
 	}
@@ -972,7 +972,7 @@ public class Utilities
 		}
 		else if (allowFallBackToArbitrary && arbitraryResult != null)
 		{
-			logger_.warn("No Code System Version was found that matched the supplied parameters, and none was found with CURRENT.  Using an aribritary result instead - '" 
+			logger_.info("No Code System Version was found that matched the supplied parameters, and none was found with CURRENT.  Using an aribritary result instead - '" 
 					+ arbitraryResult + "'");
 			return arbitraryResult;
 		}

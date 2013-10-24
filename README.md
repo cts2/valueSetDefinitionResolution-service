@@ -22,6 +22,6 @@ These might be useful with a stand-alone deployment... but are not used when thi
 For debugging purposes, you may find it useful to edit this file: cts2-framework/webapp/src/main/resources/log4j.xml
 and add this:
 
-	<logger name="edu.mayo.cts2.framework.plugin.service.valueSetDefinitionServices">
+	<logger name="edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices">
 		<level value="debug" />
 	</logger>
