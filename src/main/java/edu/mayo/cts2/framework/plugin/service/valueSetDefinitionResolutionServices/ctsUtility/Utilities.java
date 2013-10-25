@@ -483,7 +483,13 @@ public class Utilities
 	
 	public EntityReferenceAndHref resolveEntityReference(URIAndEntityName entity, ResolvedReadContext readContext)
 	{
-		readContext.setActive(ActiveOrAll.ACTIVE_ONLY);
+		ResolvedReadContext localReadContext = readContext;
+		if (localReadContext == null)
+		{
+			localReadContext = new ResolvedReadContext();
+		}
+			
+		localReadContext.setActive(ActiveOrAll.ACTIVE_ONLY);
 		EntityDescriptionReadService edrs = getLocalEntityDescriptionReadService();
 		if (edrs != null)
 		{
@@ -508,7 +514,7 @@ public class Utilities
 				{
 					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
-				EntityReference entityReference = edrs.availableDescriptions(e, readContext);
+				EntityReference entityReference = edrs.availableDescriptions(e, localReadContext);
 				return new EntityReferenceAndHref(entityReference, getUrlConstructor().createEntityUrl(entityReference.getName()));
 			}
 			catch (Exception e)
@@ -539,7 +545,7 @@ public class Utilities
 				}
 				return new EntityReferenceAndHref(getRestClient().getCts2Resource(
 						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "&list=false"
-								+ parameterizeReadContext(readContext, false), EntityReferenceMsg.class));
+								+ parameterizeReadContext(localReadContext, false), EntityReferenceMsg.class));
 			}
 			catch (Exception e)
 			{
@@ -561,7 +567,7 @@ public class Utilities
 				{
 					uriTemp = entity.getHref();
 				}
-				uriTemp += parameterizeReadContext(readContext, false);
+				uriTemp += parameterizeReadContext(localReadContext, false);
 
 				return new EntityReferenceAndHref(getRestClient().getCts2Resource(uriTemp, EntityReferenceMsg.class));
 			}
@@ -575,10 +581,15 @@ public class Utilities
 
 	public EntityReferenceAndHref resolveEntityReference(URIAndEntityName entity, CodeSystemVersionReference codeSystemVersion, ResolvedReadContext readContext)
 	{
+		ResolvedReadContext localReadContext = readContext;
+		if (localReadContext == null)
+		{
+			localReadContext = new ResolvedReadContext();
+		}
 		EntityDescriptionBase resolvedEntity = null;
 		NameOrURI codeSystemVersionUri = new NameOrURI();
 		codeSystemVersionUri.setUri(codeSystemVersion.getVersion().getUri());
-		readContext.setActive(ActiveOrAll.ACTIVE_ONLY);
+		localReadContext.setActive(ActiveOrAll.ACTIVE_ONLY);
 		try
 		{
 			EntityDescriptionReadService edrs = getLocalEntityDescriptionReadService();
@@ -600,7 +611,7 @@ public class Utilities
 				{
 					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
-				EntityDescription entityDescription = edrs.read(eid, readContext);
+				EntityDescription entityDescription = edrs.read(eid, localReadContext);
 				if (entityDescription != null)
 				{
 					resolvedEntity = (EntityDescriptionBase)entityDescription.getChoiceValue();
@@ -629,7 +640,7 @@ public class Utilities
 				}
 				EntityDescription ed = getRestClient().getCts2Resource(
 						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
-								+ parameterizeReadContext(readContext, false), EntityDescriptionMsg.class).getEntityDescription();
+								+ parameterizeReadContext(localReadContext, false), EntityDescriptionMsg.class).getEntityDescription();
 				if (ed != null)
 				{
 					resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();
@@ -660,7 +671,7 @@ public class Utilities
 				{
 					uriTemp = entity.getHref();
 				}
-				uriTemp += parameterizeReadContext(readContext, true);
+				uriTemp += parameterizeReadContext(localReadContext, true);
 
 				EntityDescription ed = getRestClient().getCts2Resource(uriTemp, EntityDescriptionMsg.class).getEntityDescription();
 				if (ed != null)
