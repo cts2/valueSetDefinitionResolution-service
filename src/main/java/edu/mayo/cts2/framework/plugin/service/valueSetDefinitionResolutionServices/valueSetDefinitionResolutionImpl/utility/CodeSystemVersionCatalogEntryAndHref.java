@@ -15,17 +15,25 @@ public class CodeSystemVersionCatalogEntryAndHref
 {
 	private CodeSystemVersionCatalogEntry csvce_;
 	private String href_;
+	private boolean foundLocal_;
 
-	public CodeSystemVersionCatalogEntryAndHref(CodeSystemVersionCatalogEntry codeSystemVersionCatalogEntryAndHref, String href)
+	public CodeSystemVersionCatalogEntryAndHref(CodeSystemVersionCatalogEntry codeSystemVersionCatalogEntryAndHref, String href, boolean foundLocal)
 	{
 		csvce_ = codeSystemVersionCatalogEntryAndHref;
 		href_ = href;
+		foundLocal_ = foundLocal;
 	}
 
 	public CodeSystemVersionCatalogEntryAndHref(CodeSystemVersionCatalogEntryMsg entityReference)
 	{
 		csvce_ = entityReference.getCodeSystemVersionCatalogEntry();
 		href_ = entityReference.getHeading().getResourceRoot() + entityReference.getHeading().getResourceURI();
+		foundLocal_ = false;
+	}
+	
+	public boolean foundLocal()
+	{
+		return foundLocal_;
 	}
 
 	public CodeSystemVersionCatalogEntry getCodeSystemVersionCatalogEntry()

@@ -1,16 +1,20 @@
 package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.utility;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.valueSetDefinitionResolutionImpl.SupportedSorts;
+import edu.mayo.cts2.framework.model.core.SortCriteria;
+import edu.mayo.cts2.framework.model.core.SortCriterion;
+import edu.mayo.cts2.framework.model.core.types.SortDirection;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
+import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.AlphanumComparator;
+import edu.mayo.cts2.framework.service.meta.StandardModelAttributeReference;
 
 public class EntityReferenceResolverComparator implements Comparator<EntityReferenceResolver>
 {
-	private ArrayList<SupportedSorts> ss_;
+	private SortCriteria sc_;
 
-	public EntityReferenceResolverComparator(ArrayList<SupportedSorts> ss)
+	public EntityReferenceResolverComparator(SortCriteria sc)
 	{
-		ss_ = ss;
+		sc_ = sc;
 	}
 
 	@Override
@@ -24,14 +28,31 @@ public class EntityReferenceResolverComparator implements Comparator<EntityRefer
 		{
 			return 1;
 		}
-		for (SupportedSorts ss : ss_)
+		for (SortCriterion sort : sc_.getEntryAsReference())
 		{
-			int result = ss.compare(o1.getEntity().getName(), o2.getEntity().getName());
+			int result = AlphanumComparator.compare(getComparable(o1, sort.getSortElement().getAttributeReference()), 
+					getComparable(o2, sort.getSortElement().getAttributeReference()), true) * (sort.getSortDirection() == SortDirection.DESCENDING ? -1 : 1);
 			if (result < 0 || result > 0)
 			{
 				return result;
 			}
 		}
 		return 0;
+	}
+	
+	private String getComparable(EntityReferenceResolver err, String sortElement)
+	{
+		if (StandardModelAttributeReference.DESIGNATION.getModelAttributeReference().getContent().equals(sortElement))
+		{
+			return err.getEntity().getDesignation();
+		}
+		else if (StandardModelAttributeReference.RESOURCE_NAME.getModelAttributeReference().getContent().equals(sortElement))
+		{
+			return err.getEntity().getName();
+		}
+		else
+		{
+			throw new UnspecifiedCts2Exception("That shouldn't have happened...");
+		}
 	}
 }

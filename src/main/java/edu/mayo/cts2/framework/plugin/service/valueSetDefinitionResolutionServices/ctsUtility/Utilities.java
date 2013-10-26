@@ -773,7 +773,7 @@ public class Utilities
 				if (temp != null)
 				{
 					return new CodeSystemVersionCatalogEntryAndHref(temp, getUrlConstructor().createCodeSystemVersionUrl(temp.getVersionOf().getContent(),
-							temp.getCodeSystemVersionName()));
+							temp.getCodeSystemVersionName()), true);
 				}
 			}
 			catch (Exception e)

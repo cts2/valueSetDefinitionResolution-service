@@ -53,7 +53,6 @@ import edu.mayo.cts2.framework.model.service.core.EntityNameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.NameOrURIList;
 import edu.mayo.cts2.framework.model.service.core.Query;
-import edu.mayo.cts2.framework.model.service.exception.UnknownCodeSystemVersion;
 import edu.mayo.cts2.framework.model.service.exception.UnknownEntity;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.AssociatedEntitiesReference;
@@ -95,8 +94,6 @@ import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetD
 @Component("valueSetDefinitionResolutionServiceImpl")
 public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionSharedServiceBase implements ValueSetDefinitionResolutionService
 {
-	// TODO TEST cycle detection
-	// TODO TEST threading
 	// TODO TEST property query reference
 
 	/*
@@ -154,10 +151,10 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<? extends ComponentReference> getSupportedSortReferences()
 	{
-		HashSet<ComponentReference> sorts = new HashSet<ComponentReference>();
-		sorts.add(SupportedSorts.ALPHA_NUMERIC.asComponentReference());
-		sorts.add(SupportedSorts.ALPHABETIC.asComponentReference());
-		return sorts;
+		HashSet<ComponentReference> result = new HashSet<ComponentReference>();
+		result.add(StandardModelAttributeReference.DESIGNATION.getComponentReference());
+		result.add(StandardModelAttributeReference.RESOURCE_NAME.getComponentReference());
+		return result;
 	}
 
 	/**
@@ -166,16 +163,17 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * @param definitionId the definition id
 	 * @param codeSystemVersions the code system versions to execute against
 	 * @param tag the tag (if any) of the code system versions to use
+	 * @param sortCriteria the criteria to use to sort the results
 	 * @param readContext the read context
 	 * @return the resolved value set
 	 */
 	@Override
 	public ResolvedValueSet resolveDefinitionAsCompleteSet(ValueSetDefinitionReadId definitionId, Set<NameOrURI> codeSystemVersions, NameOrURI tag,
-			ResolvedReadContext readContext)
+			SortCriteria sortCriteria, ResolvedReadContext readContext)
 	{
 		logger_.debug("resolveDefinitionAsCompleteSet {}, {}, {}, {}", definitionId, codeSystemVersions, tag, readContext);
 		ResolvedValueSet resolvedValueSet = new ResolvedValueSet();
-		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, null, null, readContext, null);
+		ResolveReturn rr = resolveHelper(definitionId, codeSystemVersions, tag, null, sortCriteria, readContext, null);
 		resolvedValueSet.setEntry(rr.getItems());
 		resolvedValueSet.setResolutionInfo(rr.getHeader());
 		return resolvedValueSet;
@@ -187,7 +185,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * @param definitionId the definition id
 	 * @param codeSystemVersions the code system versions to execute against
 	 * @param tag the tag (if any) of the code system versions to use
-	 * @param query the query to filter the returned results
+	 * @param sortCriteria the criteria to use to sort the results
 	 * @param readContext the read context
 	 * @param page the page
 	 * @return the resolved value set result
@@ -209,6 +207,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	 * @param codeSystemVersions the code system versions to execute against
 	 * @param tag the tag (if any) of the code system versions to use
 	 * @param query the query to filter the returned results
+	 * @param sortCriteria the criteria to use to sort the results
 	 * @param readContext the read context
 	 * @param page the page
 	 * @return the directory result
@@ -234,28 +233,26 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		{
 			return new ResolveReturn(rc, page);
 		}
-		
-		ArrayList<SupportedSorts> resolvedSortCriteria = new ArrayList<SupportedSorts>();
 
 		if (sortCriteria != null)
 		{
+			//Ensure they are sorted in entry order
 			Collections.sort(sortCriteria.getEntryAsReference(), new SortCriterionComparator());
 			//verify the sort criteria is valid
 			for (SortCriterion sc : sortCriteria.getEntryAsReference())
 			{
 				boolean found = false;
-				for (SupportedSorts ss : SupportedSorts.values())
+				for (ComponentReference cr : getSupportedSortReferences())
 				{
-					if (ss.getNiceName().equals(sc.getSortElement().getSpecialReference()))
+					if (cr.getAttributeReference().equals(sc.getSortElement().getAttributeReference()))
 					{
-						resolvedSortCriteria.add(ss);
 						found = true;
 						break;
 					}
 				}
 				if (!found)
 				{
-					throw new UnspecifiedCts2Exception("Unsupported sort algorithm '" + sc.getSortElement().getSpecialReference() + "'");
+					throw new UnspecifiedCts2Exception("Unsupported sort algorithm '" + sc.getSortElement().getChoiceValue() + "'");
 				}
 			}
 		}
@@ -511,9 +508,9 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		
 		result = processPostResolveQueryFilter(result, query, readContext);
 
-		if (resolvedSortCriteria.size() > 0)
+		if (sortCriteria != null && sortCriteria.getEntryAsReference().size() > 0)
 		{
-			Collections.sort(result, new EntityReferenceResolverComparator(resolvedSortCriteria));
+			Collections.sort(result, new EntityReferenceResolverComparator(sortCriteria));
 		}
 
 		ResultCache resultCache = new ResultCache(result, header);
@@ -555,7 +552,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		//Then handle the set logic with the other directory result
 		if (query.getQuery() != null)
 		{
-			//TODO BUG - there is an API issue here - discussed with Kevin - it doesn't make any sense for Query to contain multiple directories.
+			//TODO BUG - there is an API issue here - discussed with Kevin - it doesn't make any sense for Query to contain multiple directories at the first level.
 			//This implementation will treat the first directory for list operations to be the one resolved by this code (incoming) - and the second one for list operations
 			//will be the one in Query.getQuery6Choice().  The value in Query.getQuery6Choice2() will be completely ignored.
 			List<EntityReferenceResolver> right = resolveQuery(query.getQuery(), true);
@@ -1039,13 +1036,16 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return results;
 	}
 
-	private void processLevel(URIAndEntityName entity, AssociationDirection direction, CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion,
+	/**
+	 *	The int returned is an indicator of how many results were added, but may not be exact due to edge case handling with cycle detection. 
+	 */
+	private int processLevel(URIAndEntityName entity, AssociationDirection direction, CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion,
 			TransitiveClosure transitivity, String predicateURI, boolean leafOnly, HashSet<CustomURIAndEntityName> resultHolder, ResolvedReadContext readContext)
 	{
 		AssociationQueryService aqs = utilities_.getLocalAssociationQueryService();
 		ArrayList<CustomURIAndEntityName> thisLevelResults = new ArrayList<CustomURIAndEntityName>();
-
-		boolean localServiceFail = false;
+		
+		int resultsFromLevel = 0;
 		
 		boolean sourceToTarget;
 		if (AssociationDirection.SOURCE_TO_TARGET == direction)
@@ -1061,84 +1061,75 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			throw new UnspecifiedCts2Exception("Unexpected direction parameter - " + direction);
 		}
 
-		
-		if (aqs != null)
+		//Previously, I did this in a try/catch - but that doesn't work, because the exist service isn't throwing proper exceptions 
+		//when it doesn't know about a code system version.  https://github.com/cts2/exist-service/issues/16
+		if (aqs != null && associationCodeSystemVersion.foundLocal())
 		{
-			try
+			Page page = new Page();
+			page.setMaxToReturn(500);
+			page.setPage(0);
+
+			AssociationQuery query = AssociationQueryBuilder.build(readContext);
+
+			NameOrURI codeSystemVersion = new NameOrURI();
+			codeSystemVersion.setUri(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout());
+			query.getRestrictions().setCodeSystemVersion(codeSystemVersion);
+
+			//Note - this is broken in the exist implementation...
+			EntityNameOrURI predicate = new EntityNameOrURI();
+			predicate.setUri(predicateURI);
+			query.getRestrictions().setPredicate(predicate);
+
+			EntityNameOrURI referencedEntity = new EntityNameOrURI();
+			referencedEntity.setUri(entity.getUri());
+			ScopedEntityName sne = new ScopedEntityName();
+			sne.setName(entity.getName());
+			sne.setNamespace(entity.getNamespace());
+			referencedEntity.setEntityName(sne);
+
+			if (sourceToTarget)
 			{
-				Page page = new Page();
-				page.setMaxToReturn(500);
-				page.setPage(0);
-	
-				AssociationQuery query = AssociationQueryBuilder.build(readContext);
-	
-				NameOrURI codeSystemVersion = new NameOrURI();
-				codeSystemVersion.setUri(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout());
-				query.getRestrictions().setCodeSystemVersion(codeSystemVersion);
-	
-				//Note - this is broken in the exist implementation...
-				EntityNameOrURI predicate = new EntityNameOrURI();
-				predicate.setUri(predicateURI);
-				query.getRestrictions().setPredicate(predicate);
-	
-				EntityNameOrURI referencedEntity = new EntityNameOrURI();
-				referencedEntity.setUri(entity.getUri());
-				ScopedEntityName sne = new ScopedEntityName();
-				sne.setName(entity.getName());
-				sne.setNamespace(entity.getNamespace());
-				referencedEntity.setEntityName(sne);
-	
-				if (sourceToTarget)
+				query.getRestrictions().setSourceEntity(referencedEntity);
+			}
+			else
+			{
+				query.getRestrictions().setTargetEntity(referencedEntity);
+			}
+			while (true)
+			{
+				DirectoryResult<AssociationDirectoryEntry> temp = aqs.getResourceSummaries(query, null, page);
+				for (AssociationDirectoryEntry ade : temp.getEntries())
 				{
-					query.getRestrictions().setSourceEntity(referencedEntity);
+					//TODO BUG predicate filtering is broken on exist - post-filter here in the meantime.  https://github.com/cts2/exist-service/issues/16
+					if (ade.getPredicate().getUri().equals(predicateURI))
+					{
+						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+						{
+							thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
+						}
+						else
+						{
+							logger_.warn("We crossed code systems during an association query (process level).  Expected '" 
+									+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
+									+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
+						}
+					}
+					else 
+					{
+						logger_.info("Predicate URIs don't match.  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
+					}
+				}
+				if (temp.isAtEnd())
+				{
+					break;
 				}
 				else
 				{
-					query.getRestrictions().setTargetEntity(referencedEntity);
+					page.setPage(page.getPage() + 1);
 				}
-				while (true)
-				{
-					DirectoryResult<AssociationDirectoryEntry> temp = aqs.getResourceSummaries(query, null, page);
-					for (AssociationDirectoryEntry ade : temp.getEntries())
-					{
-						//TODO BUG predicate filtering is broken on exist - post-filter here in the meantime.  https://github.com/cts2/exist-service/issues/16
-						if (ade.getPredicate().getUri().equals(predicateURI))
-						{
-							if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
-							{
-								thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
-							}
-							else
-							{
-								logger_.warn("We crossed code systems during an association query (process level).  Expected '" 
-										+ associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout() 
-										+ "' but got '" + ade.getAssertedBy().getVersion().getUri() + "' - ignoring the result! - " + ade);
-							}
-						}
-						else 
-						{
-							logger_.info("Predicate URIs don't match.  Expected '" + predicateURI + "' but got '" + ade.getPredicate().getUri() + "'.  Not including the result " + ade);
-						}
-					}
-					if (temp.isAtEnd())
-					{
-						break;
-					}
-					else
-					{
-						page.setPage(page.getPage() + 1);
-					}
-				}
-			}
-			catch (UnknownCodeSystemVersion e)
-			{
-				//TODO TEST if this is the right exception to catch 
-				localServiceFail = true;
 			}
 		}
-		
-		//Try the remote lookup route, if the local didn't work
-		if (localServiceFail || aqs == null)
+		else
 		{
 			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
 					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(), entity.getName(), sourceToTarget, 
@@ -1149,7 +1140,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 
 		if (TransitiveClosure.DIRECTLY_ASSOCIATED == transitivity)
 		{
-			// noop - only want one level.
+			for (CustomURIAndEntityName thisLevelItem : thisLevelResults)
+			{
+				resultHolder.add(thisLevelItem);
+				resultsFromLevel++;
+			}
 		}
 		else if (TransitiveClosure.TRANSITIVE_CLOSURE == transitivity)
 		{
@@ -1159,11 +1154,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				if (resultHolder.contains(thisLevelItem))
 				{
 					// Just detected a cycle. No further processing for this item.
-					logger_.debug("Cycle detected - no further processing");
+					logger_.warn("Cycle detected - no further processing - '" + thisLevelItem.toString() + "' was reached multiple times");
+					resultsFromLevel++;  //Count it, otherwise leaf detection doesn't work right
 					continue;
 				}
 				
 				resultHolder.add(thisLevelItem);
+				resultsFromLevel++;
 				
 				if (thisLevelItem.getEntity().getUri().equals(entity.getUri()))
 				{
@@ -1173,12 +1170,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					continue;
 				}
 
-				int sizeBefore = resultHolder.size();
-				processLevel(thisLevelItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, resultHolder, readContext);
-				if (leafOnly && resultHolder.size() > sizeBefore)
+				int resultsFromNextLevel = processLevel(thisLevelItem.getEntity(), direction, associationCodeSystemVersion, transitivity, predicateURI, leafOnly, resultHolder, readContext);
+				resultsFromLevel += resultsFromNextLevel;
+				if (leafOnly && resultsFromNextLevel > 0)
 				{
 					// There were children from this node - remove it from the resultHolder since they want leaf only.
 					//It needs to be added before the recursion for cycle detection purposes.
+					resultsFromLevel--;
 					if (!resultHolder.remove(thisLevelItem))
 					{
 						throw new RuntimeException("Design error in cycle detection!");
@@ -1190,6 +1188,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		{
 			throw new UnspecifiedCts2Exception("Invalid Transitivity selection");
 		}
+		return resultsFromLevel;
 	}
 
 	private ArrayList<CustomURIAndEntityName> gatherAssociationDirectoryResults(String href, String predicateURI,
