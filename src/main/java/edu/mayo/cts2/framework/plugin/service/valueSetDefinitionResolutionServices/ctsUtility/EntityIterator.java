@@ -12,6 +12,7 @@ import edu.mayo.cts2.framework.core.timeout.Timeout;
 import edu.mayo.cts2.framework.model.command.Page;
 import edu.mayo.cts2.framework.model.command.ResolvedFilter;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
+import edu.mayo.cts2.framework.model.core.FilterComponent;
 import edu.mayo.cts2.framework.model.core.types.CompleteDirectory;
 import edu.mayo.cts2.framework.model.directory.DirectoryResult;
 import edu.mayo.cts2.framework.model.entity.EntityDirectory;
@@ -42,19 +43,19 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 	private boolean finished = false;
 	private RuntimeException e;
 	private String codeSystemVersionName, codeSystemName, entityHref, codeSystemServiceRootURL;
-	private ResolvedFilter resolvedFilter_;
+	private FilterComponent filterComponent_;
 	private ResolvedReadContext readContext_;
 
 	protected final Logger logger_ = LoggerFactory.getLogger(this.getClass());
 
-	public EntityIterator(String codeSystemVersionName, String codeSystemName, String entityHref, String codeSystemServiceRootURL, ResolvedFilter resolvedFilter,
+	public EntityIterator(String codeSystemVersionName, String codeSystemName, String entityHref, String codeSystemServiceRootURL, FilterComponent filterComponent,
 			ResolvedReadContext readContext, Utilities utilities)
 	{
 		this.utilities_ =  utilities;
 		this.codeSystemVersionName = codeSystemVersionName;
 		this.codeSystemName = codeSystemName;
 		this.codeSystemServiceRootURL = codeSystemServiceRootURL;
-		this.resolvedFilter_ = resolvedFilter;
+		this.filterComponent_ = filterComponent;
 		this.readContext_ = readContext;
 
 		if (entityHref != null && entityHref.indexOf('?') > 0)
@@ -90,9 +91,9 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 			query.getRestrictions().getCodeSystemVersions().add(codeSystem);
 			query.getReadContext().setActive(ActiveOrAll.ACTIVE_ONLY);
 
-			if (resolvedFilter_ != null)
+			if (filterComponent_ != null)
 			{
-				query.getFilterComponent().add(resolvedFilter_);
+				query.getFilterComponent().add(convert(filterComponent_));
 			}
 
 			// TODO BUG list operation is broken at the moment - https://github.com/cts2/cts2-framework/issues/23
@@ -110,25 +111,25 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 		{
 			String params = "?page=" + pageId++ + "&maxtoreturn=" + readPageSize + "&list=false&active=" + ActiveOrAll.ACTIVE_ONLY.toString();
 
-			if (resolvedFilter_ != null)
+			if (filterComponent_ != null)
 			{
 				params += "&matchalgorithm="
-						+ (StringUtils.isEmpty(resolvedFilter_.getMatchAlgorithmReference().getUri()) ? resolvedFilter_.getMatchAlgorithmReference().getContent()
-								: resolvedFilter_.getMatchAlgorithmReference().getUri());
-				params += "&matchvalue=" + resolvedFilter_.getMatchValue();
+						+ (StringUtils.isEmpty(filterComponent_.getMatchAlgorithm().getUri()) ? filterComponent_.getMatchAlgorithm().getContent()
+								: filterComponent_.getMatchAlgorithm().getUri());
+				params += "&matchvalue=" + filterComponent_.getMatchValue();
 				params += "&filtercomponent=";
-				if (StringUtils.isNotBlank(resolvedFilter_.getComponentReference().getAttributeReference()))
+				if (StringUtils.isNotBlank(filterComponent_.getAttributeReference()))
 				{
-					params += resolvedFilter_.getComponentReference().getAttributeReference();
+					params += filterComponent_.getAttributeReference();
 				}
-				else if (StringUtils.isNotBlank(resolvedFilter_.getComponentReference().getSpecialReference()))
+				else if (StringUtils.isNotBlank(filterComponent_.getSpecialReference()))
 				{
-					params += resolvedFilter_.getComponentReference().getSpecialReference();
+					params += filterComponent_.getSpecialReference();
 				}
-				else if (resolvedFilter_.getComponentReference().getPropertyReference() != null)
+				else if (filterComponent_.getPropertyReference() != null)
 				{
-					params += (StringUtils.isEmpty(resolvedFilter_.getComponentReference().getPropertyReference().getUri()) ? resolvedFilter_.getComponentReference()
-							.getPropertyReference().getName() : resolvedFilter_.getComponentReference().getPropertyReference().getUri());
+					params += (StringUtils.isEmpty(filterComponent_.getPropertyReference().getUri()) ? filterComponent_.getPropertyReference().getName() 
+							: filterComponent_.getPropertyReference().getUri());
 				}
 			}
 
@@ -202,5 +203,14 @@ public class EntityIterator implements Iterator<EntityReferenceResolver>
 	public void remove()
 	{
 		throw new UnsupportedOperationException();
+	}
+	
+	private ResolvedFilter convert(FilterComponent fc)
+	{
+		ResolvedFilter rf = new ResolvedFilter();
+		rf.setComponentReference(fc);
+		rf.setMatchAlgorithmReference(fc.getMatchAlgorithm());
+		rf.setMatchValue(fc.getMatchValue());
+		return rf;
 	}
 }

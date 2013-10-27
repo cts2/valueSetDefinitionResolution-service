@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import javax.annotation.Resource;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -21,14 +23,15 @@ import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogE
 import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogEntryMsg;
 import edu.mayo.cts2.framework.model.codesystemversion.CodeSystemVersionCatalogEntrySummary;
 import edu.mayo.cts2.framework.model.command.Page;
-import edu.mayo.cts2.framework.model.command.ResolvedFilter;
 import edu.mayo.cts2.framework.model.command.ResolvedReadContext;
 import edu.mayo.cts2.framework.model.command.ReturnContentFilter.PropertyType;
 import edu.mayo.cts2.framework.model.core.CodeSystemReference;
 import edu.mayo.cts2.framework.model.core.CodeSystemVersionReference;
 import edu.mayo.cts2.framework.model.core.DescriptionInCodeSystem;
 import edu.mayo.cts2.framework.model.core.EntityReference;
+import edu.mayo.cts2.framework.model.core.FilterComponent;
 import edu.mayo.cts2.framework.model.core.NameAndMeaningReference;
+import edu.mayo.cts2.framework.model.core.PredicateReference;
 import edu.mayo.cts2.framework.model.core.ScopedEntityName;
 import edu.mayo.cts2.framework.model.core.URIAndEntityName;
 import edu.mayo.cts2.framework.model.core.ValueSetDefinitionReference;
@@ -990,10 +993,31 @@ public class Utilities
 		return null;
 	}
 	
-	public Iterator<EntityReferenceResolver> getEntities(String codeSystemVersionName, String codeSystemName, String entityHref, ResolvedFilter resolvedFilter,
+	public Iterator<EntityReferenceResolver> getEntities(String codeSystemVersionName, String codeSystemName, String entityHref, FilterComponent resolvedFilter,
 			ResolvedReadContext readContext)
 	{
 		return new EntityIterator(codeSystemVersionName, codeSystemName, entityHref, codeSystemAndEntitiesServicesRootURL_, resolvedFilter, readContext, this);
+	}
+	
+	public Set<PredicateReference> getEntityServiceSupportedProperties()
+	{
+		EntityDescriptionQueryService edqs = getLocalEntityDescriptionQueryService();
+		if (edqs != null)
+		{
+			return edqs.getKnownProperties();
+		}
+		else if (StringUtils.isNotBlank(codeSystemAndEntitiesServicesRootURL_))
+		{
+			EntityDescriptionQueryService bqs = Cts2RestClient.instance().getCts2Resource(
+					 codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + "service/query",
+					 EntityDescriptionQueryService.class);
+			 
+			 return bqs.getKnownProperties();
+		}
+		else
+		{
+			return new HashSet<PredicateReference>();
+		}
 	}
 
 	public String makeAssociationURL(String codeSystemName, String codeSystemVersionName, String entityName, boolean sourceToTarget, String serviceURL,

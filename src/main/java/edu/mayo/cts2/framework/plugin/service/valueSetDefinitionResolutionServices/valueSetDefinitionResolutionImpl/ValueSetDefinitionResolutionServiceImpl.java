@@ -94,8 +94,6 @@ import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetD
 @Component("valueSetDefinitionResolutionServiceImpl")
 public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionSharedServiceBase implements ValueSetDefinitionResolutionService
 {
-	// TODO TEST property query reference
-
 	/*
 	 * This is used to cache entire result objects, so that we can instantly answer a request for page 2 of a query,
 	 * as long as they didn't change any aspects of the query. Results time out automatically after 5 minutes.
@@ -126,7 +124,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 	@Override
 	public Set<PredicateReference> getKnownProperties()
 	{
-		return new HashSet<PredicateReference>();  //not sure what this is for - don't see any examples - I don't think it applies.
+		//This is only used for PropertyQueryReference resolutions - so these attributes are handled by the service we use.
+		return utilities_.getEntityServiceSupportedProperties();
 	}
 
 	@Override
@@ -314,13 +313,9 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				{
 					throw new UnspecifiedCts2Exception("A property filter must be provided within a PropertyQueryReference");
 				}
-				ResolvedFilter resolvedFilter = new ResolvedFilter();
-				resolvedFilter.setMatchAlgorithmReference(pqr.getFilter().getMatchAlgorithm());
-				resolvedFilter.setMatchValue(pqr.getFilter().getMatchValue());
-				resolvedFilter.setComponentReference(pqr.getFilter());
 
 				Iterator<EntityReferenceResolver> entities = utilities_.getEntities(csv.getCodeSystemVersionName(), csv.getVersionOf().getContent(),
-						csv.getEntityDescriptions(), resolvedFilter, readContext);
+						csv.getEntityDescriptions(), pqr.getFilter(), readContext);
 				while (entities.hasNext())
 				{
 					itemList.add(entities.next());
@@ -520,6 +515,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return new ResolveReturn(resultCache, page);
 	}
 	
+	//TODO test all of these query operations
 	private List<EntityReferenceResolver> processPostResolveQueryFilter(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query, 
 			ResolvedReadContext readContext)
 	{
@@ -897,7 +893,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 		
-		
 		if (csv == null)
 		{
 			throw ExceptionBuilder.buildUnknownCodeSystemVersion("Could not resolve the specified or requested CodeSystemVersion for " + codeSystem);
@@ -905,6 +900,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return csv;
 	}
 
+	//TODO test header
 	private ResolvedValueSetHeader buildResolvedValueSetHeader(String valueSetName, String valueSetURI, String valueSetDefinitionName, String valueSetDefinitionURI,
 			List<ResolvedValueSetHeader> includesResolvedValueSets, Collection<CodeSystemVersionReference> resolvedUsingCodeSystems)
 	{
@@ -1103,9 +1099,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 					//TODO BUG predicate filtering is broken on exist - post-filter here in the meantime.  https://github.com/cts2/exist-service/issues/16
 					if (ade.getPredicate().getUri().equals(predicateURI))
 					{
-						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+						CustomURIAndEntityName resultItem = new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject());
+						//Ensure that the source and target are from the same namespace (really, I want the same code system version, but this is the best I can do
+						//and also that the asserted by was from the requested code system version as well
+						if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri())
+								&& referencedEntity.getEntityName().getNamespace().equals(resultItem.getEntity().getNamespace()))
 						{
-							thisLevelResults.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
+							thisLevelResults.add(resultItem);
 						}
 						else
 						{
