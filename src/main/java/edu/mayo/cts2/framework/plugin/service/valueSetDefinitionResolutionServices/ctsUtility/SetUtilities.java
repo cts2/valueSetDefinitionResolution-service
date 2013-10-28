@@ -3,6 +3,7 @@ package edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServi
 import java.util.Collection;
 import java.util.Iterator;
 import edu.mayo.cts2.framework.model.core.types.SetOperator;
+import edu.mayo.cts2.framework.model.exception.UnspecifiedCts2Exception;
 
 /**
  * Just some set operations methods that are more efficient than the ones in typical libraries 
@@ -17,6 +18,10 @@ public class SetUtilities<T>
 {
 	public void handleSet(SetOperator operator, Collection<T> main, Collection<T> newItems)
 	{
+		if (operator == null)
+		{
+			throw new UnspecifiedCts2Exception("Set operator is required!");
+		}
 		switch (operator)
 		{
 			case INTERSECT:
