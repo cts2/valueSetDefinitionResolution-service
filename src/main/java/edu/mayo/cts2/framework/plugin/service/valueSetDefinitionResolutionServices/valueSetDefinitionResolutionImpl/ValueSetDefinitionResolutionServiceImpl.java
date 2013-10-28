@@ -284,7 +284,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 		}
 
-		HashSet<EntityReferenceResolver> pendingResult = new HashSet<EntityReferenceResolver>();
+		Set<EntityReferenceResolver> pendingResult = new HashSet<EntityReferenceResolver>();
 		ArrayList<ResolvedValueSetHeader> includesResolvedValueSets = new ArrayList<ResolvedValueSetHeader>();
 		HashSet<CodeSystemVersionReference> resolvedUsingCodeSystems = new HashSet<CodeSystemVersionReference>();
 
@@ -507,10 +507,10 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		ResolvedValueSetHeader header = buildResolvedValueSetHeader(vsd.getDefinedValueSet().getContent(), vsd.getDefinedValueSet().getUri(), valueSetDefinitionName,
 				vsd.getAbout(), includesResolvedValueSets, resolvedUsingCodeSystems);
 		
+		pendingResult = processPostResolveQueryFilter(pendingResult, query, readContext);
+		
 		//Change the set to a list so we can sort
 		List<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>(pendingResult);
-		
-		result = processPostResolveQueryFilter(result, query, readContext);
 
 		if (sortCriteria != null && sortCriteria.getEntryAsReference().size() > 0)
 		{
@@ -524,8 +524,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return new ResolveReturn(resultCache, page);
 	}
 	
-	//TODO test all of these query operations
-	private List<EntityReferenceResolver> processPostResolveQueryFilter(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query, 
+	private Set<EntityReferenceResolver> processPostResolveQueryFilter(Set<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityQuery query, 
 			ResolvedReadContext readContext)
 	{
 		if (query == null)
@@ -533,7 +532,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			return incoming;
 		}
 		
-		List<EntityReferenceResolver> filteredResult = new ArrayList<EntityReferenceResolver>();
+		Set<EntityReferenceResolver> filteredResult = new HashSet<EntityReferenceResolver>();
 		boolean filterApplied = false;
 		
 		//handle the filter and restrictions first, as those are just talking about the incoming set.
@@ -555,13 +554,13 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		
 		//Then handle the set logic with the other directory result
-		if (query.getQuery() != null)
+		if (query.getQuery() != null && query.getQuery().getQuery6Choice() != null)
 		{
 			//TODO BUG - there is an API issue here - discussed with Kevin - it doesn't make any sense for Query to contain multiple directories at the first level.
 			//This implementation will treat the first directory for list operations to be the one resolved by this code (incoming) - and the second one for list operations
 			//will be the one in Query.getQuery6Choice().  The value in Query.getQuery6Choice2() will be completely ignored.
-			List<EntityReferenceResolver> right = resolveQuery(query.getQuery(), true);
-			List<EntityReferenceResolver> left = (filterApplied ? filteredResult : incoming);
+			Set<EntityReferenceResolver> right = resolveQuery(query.getQuery(), true);
+			Set<EntityReferenceResolver> left = (filterApplied ? filteredResult : incoming);
 			
 			resolveSetLogic(left, right, query.getQuery().getSetOperation());
 			filteredResult = resolveQueryFilterLogic(left, query.getQuery().getFilterComponent(), query.getQuery().getMatchAlgorithm(), query.getQuery().getMatchValue());
@@ -571,7 +570,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return filterApplied ? filteredResult : incoming;
 	}
 	
-	private List<EntityReferenceResolver> resolveQuery(Query query, boolean ignoreQueryChoice2)
+	private Set<EntityReferenceResolver> resolveQuery(Query query, boolean ignoreQueryChoice2)
 	{
 		if (ignoreQueryChoice2)
 		{
@@ -587,8 +586,8 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else
 		{
-			List<EntityReferenceResolver> left = new ArrayList<EntityReferenceResolver>();
-			List<EntityReferenceResolver> right = new ArrayList<EntityReferenceResolver>();
+			Set<EntityReferenceResolver> left = new HashSet<EntityReferenceResolver>();
+			Set<EntityReferenceResolver> right = new HashSet<EntityReferenceResolver>();
 			
 			if (query.getQuery6Choice() != null)
 			{
@@ -599,12 +598,12 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				right = resolveQueryChoice(query.getQuery6Choice2().getQuery2(), query.getQuery6Choice2().getDirectoryUri2());
 			}
 			
-			List<EntityReferenceResolver> result = resolveSetLogic(left, right, query.getSetOperation());
+			Set<EntityReferenceResolver> result = resolveSetLogic(left, right, query.getSetOperation());
 			return resolveQueryFilterLogic(result, query.getFilterComponent(), query.getMatchAlgorithm(), query.getMatchValue());
 		}
 	}
 	
-	private List<EntityReferenceResolver> resolveQueryFilterLogic(List<EntityReferenceResolver> incoming, NameOrURIList filterComponent, 
+	private Set<EntityReferenceResolver> resolveQueryFilterLogic(Set<EntityReferenceResolver> incoming, NameOrURIList filterComponent, 
 			NameOrURI matchAlgorithm, String matchValue)
 	{
 		if (filterComponent!= null && matchAlgorithm != null && matchValue != null)
@@ -653,7 +652,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return incoming;
 	}
 	
-	private List<EntityReferenceResolver> resolveQueryChoice(Query query, String directoryURI)
+	private Set<EntityReferenceResolver> resolveQueryChoice(Query query, String directoryURI)
 	{
 		if (query != null)
 		{
@@ -661,7 +660,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else if (StringUtils.isNotBlank(directoryURI))
 		{
-			ArrayList<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>();
+			Set<EntityReferenceResolver> result = new HashSet<EntityReferenceResolver>();
 			ArrayList<EntityReferenceAndHref> items = utilities_.resolveEntityDirectory(directoryURI);
 			
 			for (EntityReferenceAndHref er : items)
@@ -676,20 +675,20 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			}
 			return result;
 		}
-		return new ArrayList<EntityReferenceResolver>();
+		return new HashSet<EntityReferenceResolver>();
 	}
 	
-	private List<EntityReferenceResolver> resolveSetLogic(List<EntityReferenceResolver> left, List<EntityReferenceResolver> right, SetOperator so)
+	private Set<EntityReferenceResolver> resolveSetLogic(Set<EntityReferenceResolver> left, Set<EntityReferenceResolver> right, SetOperator so)
 	{
 		SetUtilities<EntityReferenceResolver> su = new SetUtilities<EntityReferenceResolver>();
 		su.handleSet(so, left, right);
 		return left;
 	}
 
-	private List<EntityReferenceResolver> passesEntityRestrictions(List<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions,
+	private Set<EntityReferenceResolver> passesEntityRestrictions(Set<EntityReferenceResolver> incoming, ResolvedValueSetResolutionEntityRestrictions restrictions,
 			ResolvedReadContext readContext)
 	{
-		List<EntityReferenceResolver> pendingResults = new ArrayList<EntityReferenceResolver>();
+		Set<EntityReferenceResolver> pendingResults = new HashSet<EntityReferenceResolver>();
 		
 		if (restrictions.getEntities() != null && restrictions.getEntities().size() > 0)
 		{
@@ -761,7 +760,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return pendingResults;
 	}
 	
-	private void removeEntitiesThatDontMatchCodeSystemVersion(List<EntityReferenceResolver> pendingResults, NameOrURI codeSystemVersion, 
+	private void removeEntitiesThatDontMatchCodeSystemVersion(Set<EntityReferenceResolver> pendingResults, NameOrURI codeSystemVersion, 
 			ResolvedReadContext readContext)
 	{
 		//Require that each entity I have is resolvable in the requested code system version...
@@ -781,8 +780,15 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				boolean ok = false;
 				for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescription())
 				{
-					if (codeSystemVersion.getName().equals(d.getDescribingCodeSystemVersion().getVersion().getContent())
-							|| codeSystemVersion.getUri().equals(d.getDescribingCodeSystemVersion().getVersion().getUri()))
+
+					if (StringUtils.isNotEmpty(codeSystemVersion.getName()) && 
+							codeSystemVersion.getName().equals(d.getDescribingCodeSystemVersion().getVersion().getContent()))
+					{
+						ok = true;
+						break;
+					}
+					else if (StringUtils.isNotBlank(codeSystemVersion.getUri()) &&
+							codeSystemVersion.getUri().equals(d.getDescribingCodeSystemVersion().getVersion().getUri()))
 					{
 						ok = true;
 						break;
@@ -797,9 +803,9 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 	}
 	
-	private List<EntityReferenceResolver> passesFilters(List<EntityReferenceResolver> incoming, Set<ResolvedFilter> filters)
+	private Set<EntityReferenceResolver> passesFilters(Set<EntityReferenceResolver> incoming, Set<ResolvedFilter> filters)
 	{
-		ArrayList<EntityReferenceResolver> result = new ArrayList<EntityReferenceResolver>();
+		HashSet<EntityReferenceResolver> result = new HashSet<EntityReferenceResolver>();
 		
 		for (EntityReferenceResolver ere : incoming)
 		{
