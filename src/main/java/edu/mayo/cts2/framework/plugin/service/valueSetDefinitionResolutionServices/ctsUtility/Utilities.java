@@ -443,44 +443,68 @@ public class Utilities
 			return null;
 		}
 		
+		ArrayList<DescriptionInCodeSystem> descriptionsToKeep = new ArrayList<DescriptionInCodeSystem>();
+		
 		if (resolvedCodeSystemVersions != null)
 		{
 			for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescriptionAsReference())
 			{
-				if (resolvedCodeSystemVersions.containsKey(d.getDescribingCodeSystemVersion().getVersion().getUri()))
+				String requestedVersion = null;
+				CodeSystemVersionCatalogEntryAndHref csvce = resolvedCodeSystemVersions.get(d.getDescribingCodeSystemVersion().getCodeSystem().getUri());
+				if (csvce != null)
+				{
+					requestedVersion = csvce.getCodeSystemVersionCatalogEntry().getAbout();
+				}
+				if (d.getDescribingCodeSystemVersion().getVersion().getUri().equals(requestedVersion))
 				{
 					//This entity reference aligns with one of the requested resolvedCodeSystemVersions - use it.
-					return er;
+					descriptionsToKeep.add(d);
 				}
 			}
 		}
 		
 		//None matched the requested code system versions.  Move on to tag matching.
-		
-		for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescriptionAsReference())
+		if (descriptionsToKeep.size() == 0)
 		{
-			CodeSystemVersionCatalogEntrySummary cs = lookupCodeSystemVersionByTag(d.getDescribingCodeSystemVersion().getCodeSystem(), tag, "CURRENT", 
-					false, readContext);
-			if (cs != null && !cs.getAbout().equals(d.getDescribingCodeSystemVersion().getVersion().getUri()))
+			//See what unique code systems we have
+			HashMap<String, CodeSystemReference> returnedCodeSystemVersions = new HashMap<String, CodeSystemReference>();
+			for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescriptionAsReference())
 			{
-				//We found a CodeSystemVersion that will work - and it isn't the one we already have.  lookup the entity there, and return it.
-				CodeSystemVersionReference csvr = new CodeSystemVersionReference();
-				csvr.setCodeSystem(cs.getVersionOf());
-				NameAndMeaningReference namr = new NameAndMeaningReference();
-				namr.setUri(cs.getAbout());
-				namr.setContent(cs.getCodeSystemVersionName());
-				namr.setHref(cs.getHref());
-				csvr.setVersion(namr);
-				EntityReferenceAndHref temp = resolveEntityReference(entity, csvr, readContext);
-				if (temp != null)
-				{
-					return temp;
-				}
+				returnedCodeSystemVersions.put(d.getDescribingCodeSystemVersion().getCodeSystem().getUri(), d.getDescribingCodeSystemVersion().getCodeSystem());
 			}
 			
+			for (CodeSystemReference csr : returnedCodeSystemVersions.values())
+			{
+				//lookup the unique code system by tag
+				CodeSystemVersionCatalogEntrySummary cs = lookupCodeSystemVersionByTag(csr, tag, "CURRENT", false, readContext);
+				
+				if (cs != null)
+				{
+					//See if any of our descriptions came from this code system
+					for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescriptionAsReference())
+					{
+						if (cs.getAbout().equals(d.getDescribingCodeSystemVersion().getVersion().getUri()))
+						{
+							descriptionsToKeep.add(d);
+						}
+					}
+				}
+				if (descriptionsToKeep.size() > 0)
+				{
+					break;
+				}
+			}
 		}
-		logger_.info("No Entity Reference was found that matched the supplied code system version parameters, and none was found with CURRENT.  " 
-				+ "Using an aribritary result instead - '" + er + "'");
+		
+		if (descriptionsToKeep.size() > 0)
+		{
+			er.getEntityReference().setKnownEntityDescription(descriptionsToKeep);
+		}
+		else
+		{
+			logger_.info("No Entity Reference was found with descriptions that matched the supplied code system version parameters, and none was found with CURRENT.  " 
+					+ "simply returning all descriptions which were found in entity '" + er + "'");
+		}
 		return er;
 	}
 	

@@ -91,6 +91,8 @@ import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ResolvedValueS
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.ValueSetDefinitionResolutionService;
 import edu.mayo.cts2.framework.service.profile.valuesetdefinition.name.ValueSetDefinitionReadId;
 
+//TODO TEST - still need to test handling of the TAG parameter, but exist doesn't support tags, so no way to test at the moment.
+
 @Component("valueSetDefinitionResolutionServiceImpl")
 public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionSharedServiceBase implements ValueSetDefinitionResolutionService
 {
@@ -265,7 +267,14 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 				try
 				{
 					CodeSystemVersionCatalogEntryAndHref csvce = utilities_.lookupCodeSystemVersion(nou, null, readContext);
-					resolvedCodeSystemVersions.put(csvce.getCodeSystemVersionCatalogEntry().getAbout(), csvce);
+					CodeSystemVersionCatalogEntryAndHref oldEntry = resolvedCodeSystemVersions.put(
+							csvce.getCodeSystemVersionCatalogEntry().getVersionOf().getUri(), csvce);
+					
+					if (oldEntry != null)
+					{
+						throw new UnspecifiedCts2Exception("Multiple versions were specified for the resolution of a single code system version - '" + 
+								csvce.getCodeSystemVersionCatalogEntry().getVersionOf().getUri() + "'");
+					}
 				}
 				catch (Exception e)
 				{
@@ -900,7 +909,6 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return csv;
 	}
 
-	//TODO test header
 	private ResolvedValueSetHeader buildResolvedValueSetHeader(String valueSetName, String valueSetURI, String valueSetDefinitionName, String valueSetDefinitionURI,
 			List<ResolvedValueSetHeader> includesResolvedValueSets, Collection<CodeSystemVersionReference> resolvedUsingCodeSystems)
 	{
