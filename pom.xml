@@ -109,7 +109,22 @@
 			<artifactId>cts2-model</artifactId>
 			<version>${develpment.framework.version}</version>
 		</dependency>
-
+		
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-test</artifactId>
+			<version>3.0.4.RELEASE</version>
+			<scope>test</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>edu.mayo.cts2.framework</groupId>
+			<artifactId>cts2-core</artifactId>
+			<version>${develpment.framework.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		
 		<dependency> 
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
