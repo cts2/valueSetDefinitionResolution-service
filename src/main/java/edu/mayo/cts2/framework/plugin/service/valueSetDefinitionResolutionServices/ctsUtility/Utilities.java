@@ -53,6 +53,7 @@ import edu.mayo.cts2.framework.model.service.core.NameOrURI;
 import edu.mayo.cts2.framework.model.service.core.types.ActiveOrAll;
 import edu.mayo.cts2.framework.model.service.exception.UnknownValueSetDefinition;
 import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntry;
+import edu.mayo.cts2.framework.model.valueset.ValueSetCatalogEntryMsg;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionDirectoryEntry;
 import edu.mayo.cts2.framework.model.valuesetdefinition.ValueSetDefinitionMsg;
 import edu.mayo.cts2.framework.plugin.service.valueSetDefinitionResolutionServices.ctsUtility.queryBuilders.CodeSystemVersionQueryBuilder;
@@ -200,7 +201,7 @@ public class Utilities
 				logger_.debug("Looking up valueset using external server '{}'", valueSetServiceRootURL_);
 				String address = valueSetServiceRootURL_ + (valueSetServiceRootURL_.endsWith("/") ? "" : "/") + "valuesetbyuri?uri=" + uri
 						+ parameterizeReadContext(readContext, false);
-				vs = getRestClient().getCts2Resource(address, ValueSetCatalogEntry.class);
+				vs = getRestClient().getCts2Resource(address, ValueSetCatalogEntryMsg.class).getValueSetCatalogEntry();
 			}
 		}
 		catch (Exception e)
@@ -358,7 +359,7 @@ public class Utilities
 				ValueSetDefinitionMsg temp = getRestClient().getCts2Resource(address, ValueSetDefinitionMsg.class);
 				definition = new LocalIdValueSetDefinition(temp.getValueSetDefinition());
 
-				String rr = temp.getHeading().getResourceRoot();  // Looks like valueset/AdministrativeGender/definition/1 - need to parse out the end
+				String rr = temp.getHeading().getResourceURI();  // Looks like valueset/AdministrativeGender/definition/1 - need to parse out the end
 				if (rr.indexOf('/') > 0)
 				{
 					definition.setLocalID(rr.substring(rr.lastIndexOf('/'), rr.length()));
@@ -444,8 +445,7 @@ public class Utilities
 		}
 		
 		ArrayList<DescriptionInCodeSystem> descriptionsToKeep = new ArrayList<DescriptionInCodeSystem>();
-		
-		if (resolvedCodeSystemVersions != null)
+		if (resolvedCodeSystemVersions != null && resolvedCodeSystemVersions.size() > 0)
 		{
 			for (DescriptionInCodeSystem d : er.getEntityReference().getKnownEntityDescriptionAsReference())
 			{
@@ -463,7 +463,7 @@ public class Utilities
 			}
 		}
 		
-		//None matched the requested code system versions.  Move on to tag matching.
+		//None matched the requested code system versions (or none were requested).  Move on to tag matching.
 		if (descriptionsToKeep.size() == 0)
 		{
 			//See what unique code systems we have
@@ -570,9 +570,9 @@ public class Utilities
 				{
 					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
-				return new EntityReferenceAndHref(getRestClient().getCts2Resource(
-						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "&list=false"
-								+ parameterizeReadContext(localReadContext, false), EntityReferenceMsg.class));
+				String fullAddress = codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
+						+ parameterizeReadContext(localReadContext, false);
+				return new EntityReferenceAndHref(getRestClient().getCts2Resource(fullAddress, EntityReferenceMsg.class));
 			}
 			catch (Exception e)
 			{
@@ -665,9 +665,9 @@ public class Utilities
 				{
 					throw new UnspecifiedCts2Exception("URI is required within a URIAndEntityName!");
 				}
-				EntityDescription ed = getRestClient().getCts2Resource(
-						codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
-								+ parameterizeReadContext(localReadContext, false), EntityDescriptionMsg.class).getEntityDescription();
+				String fullUrl = codeSystemAndEntitiesServicesRootURL_ + (codeSystemAndEntitiesServicesRootURL_.endsWith("/") ? "" : "/") + url + "list=false"
+						+ parameterizeReadContext(localReadContext, false);
+				EntityDescription ed = getRestClient().getCts2Resource(fullUrl, EntityDescriptionMsg.class).getEntityDescription();
 				if (ed != null)
 				{
 					resolvedEntity = (EntityDescriptionBase)ed.getChoiceValue();

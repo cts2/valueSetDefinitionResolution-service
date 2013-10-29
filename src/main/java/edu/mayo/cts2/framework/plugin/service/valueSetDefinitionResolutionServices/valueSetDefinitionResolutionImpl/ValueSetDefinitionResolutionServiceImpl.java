@@ -1145,11 +1145,12 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		else
 		{
-			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
-					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(), entity.getName(), sourceToTarget, 
+			String href = utilities_.makeAssociationURL(associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getVersionOf().getContent(),
+					associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getCodeSystemVersionName(),
+					entity.getName(), sourceToTarget, 
 					associationCodeSystemVersion.getHref(), readContext);
 
-			thisLevelResults.addAll(gatherAssociationDirectoryResults(href, predicateURI, associationCodeSystemVersion, sourceToTarget));
+			thisLevelResults.addAll(gatherAssociationDirectoryResults(entity, href, predicateURI, associationCodeSystemVersion, sourceToTarget));
 		}
 
 		if (TransitiveClosure.DIRECTLY_ASSOCIATED == transitivity)
@@ -1205,7 +1206,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		return resultsFromLevel;
 	}
 
-	private ArrayList<CustomURIAndEntityName> gatherAssociationDirectoryResults(String href, String predicateURI,
+	private ArrayList<CustomURIAndEntityName> gatherAssociationDirectoryResults(URIAndEntityName referencedEntity, String href, String predicateURI,
 			CodeSystemVersionCatalogEntryAndHref associationCodeSystemVersion, boolean sourceToTarget)
 	{
 		AssociationDirectory result = Cts2RestClient.instance().getCts2Resource(href, AssociationDirectory.class);
@@ -1217,7 +1218,11 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 			//and  https://github.com/cts2/exist-service/issues/16
 			if (ade.getPredicate().getUri().equals(predicateURI))
 			{
-				if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri()))
+				CustomURIAndEntityName resultItem = new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject());
+				//Ensure that the source and target are from the same namespace (really, I want the same code system version, but this is the best I can do
+				//and also that the asserted by was from the requested code system version as well
+				if (associationCodeSystemVersion.getCodeSystemVersionCatalogEntry().getAbout().equals(ade.getAssertedBy().getVersion().getUri())
+						&& referencedEntity.getNamespace().equals(resultItem.getEntity().getNamespace()))
 				{
 					resultHolder.add(new CustomURIAndEntityName(sourceToTarget ? ade.getTarget().getEntity() : ade.getSubject()));
 				}
@@ -1235,7 +1240,7 @@ public class ValueSetDefinitionResolutionServiceImpl extends ValueSetDefinitionS
 		}
 		if (result.getComplete() == CompleteDirectory.PARTIAL && StringUtils.isNotBlank(result.getNext()))
 		{
-			resultHolder.addAll(gatherAssociationDirectoryResults(result.getNext(), predicateURI, associationCodeSystemVersion, sourceToTarget));
+			resultHolder.addAll(gatherAssociationDirectoryResults(referencedEntity, result.getNext(), predicateURI, associationCodeSystemVersion, sourceToTarget));
 		}
 		return resultHolder;
 	}

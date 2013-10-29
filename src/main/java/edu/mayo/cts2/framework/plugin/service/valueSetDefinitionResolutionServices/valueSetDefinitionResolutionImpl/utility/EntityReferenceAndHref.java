@@ -23,7 +23,12 @@ public class EntityReferenceAndHref
 	public EntityReferenceAndHref(EntityReferenceMsg entityReference)
 	{
 		entityReference_ = entityReference.getEntityReference();
-		href_ = entityReference.getHeading().getResourceRoot() + entityReference.getHeading().getResourceURI();
+		String sep = "";
+		if (!entityReference.getHeading().getResourceURI().endsWith("/") && !entityReference.getHeading().getResourceRoot().startsWith("/"))
+		{
+			sep = "/";
+		}
+		href_ = entityReference.getHeading().getResourceRoot() + sep + entityReference.getHeading().getResourceURI();
 	}
 
 	public EntityReference getEntityReference()

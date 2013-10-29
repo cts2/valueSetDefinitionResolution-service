@@ -27,7 +27,12 @@ public class CodeSystemVersionCatalogEntryAndHref
 	public CodeSystemVersionCatalogEntryAndHref(CodeSystemVersionCatalogEntryMsg entityReference)
 	{
 		csvce_ = entityReference.getCodeSystemVersionCatalogEntry();
-		href_ = entityReference.getHeading().getResourceRoot() + entityReference.getHeading().getResourceURI();
+		String sep = "";
+		if (!entityReference.getHeading().getResourceURI().endsWith("/") && !entityReference.getHeading().getResourceRoot().startsWith("/"))
+		{
+			sep = "/";
+		}
+		href_ = entityReference.getHeading().getResourceRoot() + sep + entityReference.getHeading().getResourceURI(); 
 		foundLocal_ = false;
 	}
 	
