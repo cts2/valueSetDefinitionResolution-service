@@ -1,3 +1,5 @@
+# This service implementation has been archived.
+
 #### valueSetDefinitionResolution-service
 
 An Implementation of the ValueSetDefinitionResolution Service
